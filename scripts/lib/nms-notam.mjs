@@ -32,6 +32,15 @@ const CLOSURE_TEXT = /^(?:AD|AERODROME|AIRPORT)(?: AP)? (?:CLSD|CLOSED)\b/;
 // A closure that still admits traffic ("CLSD TO NON SKED TRANSIENT GA ACFT EXC
 // 24HR PPR") is a restriction, not a closed airport.
 const PARTIAL_CLOSURE_TEXT = /\b(?:CLSD|CLOSED) TO\b|\bEXC(?:EPT)?\b|\bPPR\b/;
+const EXCEPTION_TEXT = /\bEXC(?:EPT)?\b|\bPPR\b/;
+// "CLSD TO ALL TFC" with no exception closes the aerodrome outright.
+const CLOSED_TO_ALL_TEXT = /\b(?:CLSD|CLOSED) TO ALL (?:TFC|TRAFFIC|ACFT|FLIGHTS|FLTS?)\b/;
+// A closure to one narrow traffic class leaves airline service running, e.g.
+// KLAX's standing "CLSD TO NON SKED TRANSIENT GA ACFT EXC 24HR PPR". Counting
+// these flagged major US hubs as disrupted. Only the classes listed here drop;
+// any other "CLSD TO <class>" (civil, commercial, IFR, size limits) still
+// counts as a restriction.
+const NARROW_CLOSURE_TEXT = /\b(?:CLSD|CLOSED) (?:TO|FOR) (?:NON[- ]?SKED|TRANSIENT|VISITING|GA|ULTRALIGHT|STUDENT|TRG|TRAINING|CIV(?:IL)? TRG|PRKG|PARKING|MIL(?:ITARY)? ACFT|[A-Z]{1,3}-\d{1,3}[A-Z]?|COMMERCIAL AIR CARRIER DIVERTS)\b/;
 const AIRPORT_RESTRICTION_SUBJECTS = new Set(['RA', 'RO', 'RT', 'RR', 'RP']);
 
 // Written by seed-notam-nms.mjs, read by seed-aviation.mjs's NOTAM side-car.
@@ -140,8 +149,11 @@ export function classifyNotam(notam) {
   const text = normalizeText(upper(notam.text));
   const out = {};
 
-  if (subject === 'FA' && condition === 'LC' || CLOSURE_TEXT.test(text)) {
-    out.airport = PARTIAL_CLOSURE_TEXT.test(text) ? 'restricted' : 'closed';
+  if (NARROW_CLOSURE_TEXT.test(text)) {
+    // Not an airport disruption; the airspace checks below still apply.
+  } else if (subject === 'FA' && condition === 'LC' || CLOSURE_TEXT.test(text)) {
+    const closedToAll = CLOSED_TO_ALL_TEXT.test(text) && !EXCEPTION_TEXT.test(text);
+    out.airport = closedToAll || !PARTIAL_CLOSURE_TEXT.test(text) ? 'closed' : 'restricted';
   } else if (AIRPORT_RESTRICTION_SUBJECTS.has(subject) && (condition === 'RE' || condition === 'RT')) {
     out.airport = 'restricted';
   }
@@ -241,6 +253,10 @@ export function buildClosures(items, nowMs) {
   const restricted = new Map();
   for (const rec of Object.values(items)) {
     if (!rec.a || !rec.loc || !isActive(rec, nowMs)) continue;
+    // State carries records classified before NARROW_CLOSURE_TEXT existed, and
+    // delta runs never reclassify them. The phrase sits near the start of an
+    // aerodrome NOTAM, well inside the 280 characters the record keeps.
+    if (NARROW_CLOSURE_TEXT.test(upper(rec.txt))) continue;
     const target = rec.a === 'closed' ? closed : restricted;
     if (!target.has(rec.loc)) target.set(rec.loc, rec.txt || (rec.a === 'closed' ? 'Airport closure (NOTAM)' : 'Airspace restriction (NOTAM)'));
   }

@@ -4,6 +4,9 @@ import { COUNTRY_ACTIVITY_BOUNDS, isCountryActivityCoordinate, projectCountryMil
 import { CountryBriefController, projectChinaCountrySummary } from '@/components/CountryBriefController';
 import { createWebsiteCountryBriefSource } from '@/services/country-brief-source';
 import { hasTemporalBaselineSnapshot } from '@/services/temporal-baseline';
+import { isBriefAviationDisruption } from '@/services/country-aviation-context';
+import type { AirportDelayAlert } from '@/services/aviation';
+import { withTimeout } from '@/utils/with-timeout';
 import type { AppContext, AppModule, CountryBriefSignals } from '@/app/app-context';
 import type { CountrySignalCounts } from '@/types';
 import { getSignalAggregator } from '@/app/lazy-services';
@@ -143,6 +146,8 @@ type CountryPresentation = {
   refreshGeneration: number;
   signalDetailsPending: boolean;
 };
+
+const AVIATION_SIGNAL_TIMEOUT_MS = 2500;
 
 export class CountryIntelManager implements AppModule {
   private ctx: AppContext;
@@ -1251,13 +1256,7 @@ export class CountryIntelManager implements AppModule {
 
     const activeStrikes = this.getCountryStrikes(code, hasGeoShape).length;
 
-    let aviationDisruptions = 0;
-    if (this.ctx.intelligenceCache.flightDelays) {
-      aviationDisruptions = this.ctx.intelligenceCache.flightDelays.filter(d =>
-        (d.severity === 'major' || d.severity === 'severe' || d.delayType === 'closure') &&
-        (hasGeoShape ? this.isInCountry(d.lat, d.lon, code) : d.country?.toLowerCase() === countryLower)
-      ).length;
-    }
+    const aviationDisruptions = (await this.countryAviationDisruptions(code, country)).length;
 
     const ciiData = getCountryData(code);
     const isTier1 = !!TIER1_COUNTRIES[code];
@@ -1330,6 +1329,30 @@ export class CountryIntelManager implements AppModule {
       sanctionsDesignations,
       sanctionsNewDesignations,
     };
+  }
+
+  /**
+   * Airport closures and severe or major disruptions in this country. The
+   * flight-delay cache is filled only while the Aviation map layer is on, so a
+   * brief opened with the layer off reads the same bootstrap snapshot through
+   * the aviation service instead of reporting zero. The read is bounded: the
+   * brief waits on these signals before it shows.
+   */
+  private async countryAviationDisruptions(code: string, country: string): Promise<AirportDelayAlert[]> {
+    let delays = this.ctx.intelligenceCache.flightDelays;
+    if (!delays) {
+      try {
+        const { fetchFlightDelays } = await import('@/services/aviation');
+        delays = await withTimeout(fetchFlightDelays(), AVIATION_SIGNAL_TIMEOUT_MS, 'country-aviation-disruptions');
+      } catch (err) {
+        console.warn('[CountryBrief] airport disruptions unavailable:', err);
+        return [];
+      }
+    }
+    const countryLower = country.toLowerCase();
+    const hasGeoShape = hasCountryGeometry(code) || !!CountryIntelManager.COUNTRY_BOUNDS[code];
+    return delays.filter(d => isBriefAviationDisruption(d)
+      && (hasGeoShape ? this.isInCountry(d.lat, d.lon, code) : d.country?.toLowerCase() === countryLower));
   }
 
   private newsSeverityRank(item: NewsItem): number {
