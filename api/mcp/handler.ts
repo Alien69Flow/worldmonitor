@@ -150,6 +150,22 @@ function hasCredentials(req: Request): boolean {
   return (req.headers.get('X-WorldMonitor-Key') ?? '') !== '';
 }
 
+// Default User-Agents of HTTP libraries, which scripts and self-built agents
+// send unchanged. Production, 2026-10-17 to 10-24: after the connect-time 401,
+// python-httpx signed in from 1 of 254 IPs, node 2 of 195, Go-http-client 0 of
+// 102, undici 3 of 45. They retried the handshake instead (about 245,000 401s).
+// Connectors and CLIs name themselves and do sign in, so they keep the
+// challenge; these clients reach the 401 at their first paid tool call, which
+// the Python and TypeScript SDK auth providers answer the same way.
+// The whole value must be the default form: the library name, an optional
+// `/version` and an optional `(comment)`. A named product after it, such as
+// `node Cursor/1.0`, is a connector and keeps the challenge.
+const GENERIC_HTTP_CLIENT_UA = /^(?:python-httpx2?|python-requests|python-urllib|node|undici|go-http-client|hermes-agent)(?:\/[\w.+-]+)?(?:\s+\([^()]*\))?$/i;
+
+function isGenericHttpClient(req: Request): boolean {
+  return GENERIC_HTTP_CLIENT_UA.test(req.headers.get('User-Agent') ?? '');
+}
+
 type JsonRpcRequest = {
   jsonrpc?: string;
   id?: unknown;
@@ -1219,7 +1235,7 @@ async function mcpHandlerInner(
   // with `tools/list` instead. The modern era has no shipped keyless clients.
   // Two exemptions keep their anonymous promise: the free-tier `get_sources`
   // call and a static `ui://` app-shell read. The aliases stay anonymous.
-  const challengeAnonymous = method === 'initialize'
+  const challengeAnonymous = (method === 'initialize' && (modernEra || !isGenericHttpClient(req)))
     || (modernEra && !isFreeTierToolCall && uiResourceReadUri === null);
   if (challengeAnonymous && !hasCredentials(req) && !WELL_KNOWN_MCP_PATHS.has(requestPathname)) {
     const denied = await resolveAuthContext(req, deps, resourceMetadataUrl, corsHeaders, id);
