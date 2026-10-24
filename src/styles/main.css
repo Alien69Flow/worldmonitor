@@ -9459,7 +9459,7 @@ a.prediction-link:hover {
   background: rgba(255, 68, 68, 0.06);
 }
 
-.popup-header.hotspot {
+.popup-header.hotspot-popup {
   background: rgba(68, 255, 136, 0.06);
 }
 
@@ -9482,7 +9482,7 @@ a.prediction-link:hover {
   white-space: nowrap;
 }
 
-.popup-header.hotspot .popup-title {
+.popup-header.hotspot-popup .popup-title {
   color: var(--green);
 }
 
