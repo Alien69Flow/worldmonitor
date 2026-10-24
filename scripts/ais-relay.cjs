@@ -13254,6 +13254,11 @@ const server = http.createServer(async (req, res) => {
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
+            // Smartraveller's Akamai edge never answers a request without
+            // Accept-Encoding (the relay logged `read ETIMEDOUT` on every miss).
+            // gzip only: the body handler below decodes gzip and deflate, and
+            // gzip is the one every server that compresses supports.
+            'Accept-Encoding': 'gzip',
             ...conditionalHeaders,
           },
           timeout: 15000,
