@@ -18,6 +18,7 @@
     { "source": "/crises/:match(.*)", "has": [{ "type": "host", "value": "^(?:tech|finance|commodity|happy|energy|api)\\.worldmonitor\\.app$" }], "destination": "https://www.worldmonitor.app/crises/:match", "permanent": true },
     { "source": "/use-cases/:match(.*)", "has": [{ "type": "host", "value": "^(?:tech|finance|commodity|happy|energy|api)\\.worldmonitor\\.app$" }], "destination": "https://www.worldmonitor.app/use-cases/:match", "permanent": true },
     { "source": "/accuracy/:match(.*)", "has": [{ "type": "host", "value": "^(?:tech|finance|commodity|happy|energy|api)\\.worldmonitor\\.app$" }], "destination": "https://www.worldmonitor.app/accuracy/:match", "permanent": true },
+    { "source": "/monitor-the-situation/:match(.*)", "has": [{ "type": "host", "value": "^(?:tech|finance|commodity|happy|energy|api)\\.worldmonitor\\.app$" }], "destination": "https://www.worldmonitor.app/monitor-the-situation/:match", "permanent": true },
     { "source": "/reference/", "destination": "/reference/changelog/", "permanent": false },
     { "source": "/reference/:match(.*)", "has": [{ "type": "host", "value": "^(?:tech|finance|commodity|happy|energy|api)\\.worldmonitor\\.app$" }], "destination": "https://www.worldmonitor.app/reference/:match", "permanent": true },
     { "source": "/sources/:match(.*)", "has": [{ "type": "host", "value": "^(?:tech|finance|commodity|happy|energy|api)\\.worldmonitor\\.app$" }], "destination": "https://www.worldmonitor.app/sources/:match", "permanent": true },
@@ -102,6 +103,7 @@
     { "source": "/use-cases", "destination": "/use-cases/", "permanent": true },
     { "source": "/use-cases/:slug([a-z0-9-]+)", "destination": "/use-cases/:slug/", "permanent": true },
     { "source": "/accuracy", "destination": "/accuracy/", "permanent": true },
+    { "source": "/monitor-the-situation", "destination": "/monitor-the-situation/", "permanent": true },
     { "source": "/trust", "destination": "/trust/", "permanent": true },
     { "source": "/agent", "destination": "/agent/", "permanent": true },
     { "source": "/trust/review", "destination": "/trust/review/", "permanent": false },
@@ -186,7 +188,7 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow" }]
     },
     {
-      "source": "/(country-instability-index|countries|sources|chokepoints|research|crises|use-cases|accuracy|compare|tools|reference|changelog)/(.*).json",
+      "source": "/(country-instability-index|countries|sources|chokepoints|research|crises|use-cases|accuracy|monitor-the-situation|compare|tools|reference|changelog)/(.*).json",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow" }]
     },
     {
@@ -782,6 +784,18 @@
       ]
     },
     {
+      "source": "/monitor-the-situation/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/monitor-the-situation",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+      ]
+    },
+    {
       "source": "/compare/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
@@ -830,7 +844,7 @@
       ]
     },
     {
-      "source": "/(country-instability-index|countries|sources|chokepoints|research|crises|use-cases|accuracy|compare|tools|reference|changelog)",
+      "source": "/(country-instability-index|countries|sources|chokepoints|research|crises|use-cases|accuracy|monitor-the-situation|compare|tools|reference|changelog)",
       "headers": [
         { "key": "CDN-Cache-Control", "value": "public, s-maxage=600, stale-while-revalidate=60" },
         { "key": "Vercel-CDN-Cache-Control", "value": "public, s-maxage=600, stale-while-revalidate=60" },
@@ -838,7 +852,7 @@
       ]
     },
     {
-      "source": "/(country-instability-index|countries|sources|chokepoints|research|crises|use-cases|accuracy|compare|tools|reference|changelog)/(.*)",
+      "source": "/(country-instability-index|countries|sources|chokepoints|research|crises|use-cases|accuracy|monitor-the-situation|compare|tools|reference|changelog)/(.*)",
       "headers": [
         { "key": "CDN-Cache-Control", "value": "public, s-maxage=600, stale-while-revalidate=60" },
         { "key": "Vercel-CDN-Cache-Control", "value": "public, s-maxage=600, stale-while-revalidate=60" },
@@ -846,7 +860,7 @@
       ]
     },
     {
-      "source": "/((?!api|mcp|a2a|ask|oauth|assets|blog|docs|country-instability-index|countries|chokepoints|compare|crises|tools|research|reference|changelog|sources|use-cases|accuracy|src|tmp|server|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|robots\\.www\\.txt|robots\\.variant\\.txt|robots\\.api\\.txt|sitemap\\.xml|sitemap-main\\.xml|schemamap\\.xml|sandbox|llms\\.txt|llms-full\\.txt|llms\\*\\.txt|openapi\\.yaml|openapi\\.json|plugin\\.json|auth\\.md|pricing\\.md|support\\.md|ai-search\\.md|agents\\.md|developers\\.md|developers/llms\\.txt|mcp-server\\.md|openapi\\.md|sdks\\.md|world-monitor\\.md|api-versioning\\.md|agent\\.txt|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant|desktop-sign-in\\.html|desktop-sign-in|.*\\.md$).*)",
+      "source": "/((?!api|mcp|a2a|ask|oauth|assets|blog|docs|country-instability-index|countries|chokepoints|compare|crises|tools|research|reference|changelog|sources|use-cases|accuracy|monitor-the-situation|src|tmp|server|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|robots\\.www\\.txt|robots\\.variant\\.txt|robots\\.api\\.txt|sitemap\\.xml|sitemap-main\\.xml|schemamap\\.xml|sandbox|llms\\.txt|llms-full\\.txt|llms\\*\\.txt|openapi\\.yaml|openapi\\.json|plugin\\.json|auth\\.md|pricing\\.md|support\\.md|ai-search\\.md|agents\\.md|developers\\.md|developers/llms\\.txt|mcp-server\\.md|openapi\\.md|sdks\\.md|world-monitor\\.md|api-versioning\\.md|agent\\.txt|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant|desktop-sign-in\\.html|desktop-sign-in|.*\\.md$).*)",
       "headers": [
         { "key": "Cache-Control", "value": "private, no-cache, must-revalidate" }
       ]

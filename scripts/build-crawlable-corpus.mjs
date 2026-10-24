@@ -54,6 +54,14 @@ import {
   writeLiveTopicPages,
 } from './build-live-topic-pages.mjs';
 import { LIVE_TOPIC_PAGES } from './live-pages/index.mjs';
+import {
+  CRISIS_REGION_IDS,
+  SITUATION_CONTENT_VERSION,
+  SITUATION_PAGE_INPUT_PATHS,
+  SITUATION_PAGE_PATH,
+  writeSituationPage,
+} from './build-situation-page.mjs';
+import { slugify } from './slugify.mjs';
 import { sourceOriginFilterValue } from './source-origin.mjs';
 import {
   attachCoverageToCatalog,
@@ -389,6 +397,7 @@ export const GENERATED_DIRS = [
   'sources',
   'use-cases',
   'accuracy',
+  'monitor-the-situation',
 ];
 
 const MONTHS = [
@@ -1036,16 +1045,7 @@ function escapeJsonScript(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
-export function slugify(value) {
-  return String(value ?? '')
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/&/g, ' and ')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-{2,}/g, '-')
-    .toLowerCase();
-}
+export { slugify };
 
 function uniqueSlug(preferred, code, seen) {
   const base = slugify(preferred || code);
@@ -1567,6 +1567,7 @@ function normalizeCrises(entries) {
   const seen = new Set();
   return (entries || []).map((entry) => {
     const slug = String(entry.slug || '');
+    const region = String(entry.region || '');
     const dashboardPath = String(entry.dashboardPath || '');
     const coverage = Array.isArray(entry.coverage)
       ? entry.coverage.map((country) => ({
@@ -1582,6 +1583,7 @@ function normalizeCrises(entries) {
       || !entry.shortTitle
       || !entry.description
       || !entry.overview
+      || !CRISIS_REGION_IDS.includes(region)
       || !dashboardPath.startsWith('/')
       || dashboardPath.startsWith('//')
       || coverage.length === 0
@@ -1597,6 +1599,7 @@ function normalizeCrises(entries) {
       shortTitle: String(entry.shortTitle),
       description: String(entry.description),
       overview: String(entry.overview),
+      region,
       coverage,
       dashboardPath,
     };
@@ -2142,6 +2145,14 @@ export async function loadCorpusData({
     gitFileLastmod(rootDir, ACCURACY_PAGE_SOURCE_PATH),
     livePulse.capturedAt,
   );
+  // The page prints the crisis registry and three pulse readings, so the
+  // registry and the capture move it alongside its own sources.
+  const situationLastmod = laterDate(
+    SITUATION_CONTENT_VERSION,
+    ...SITUATION_PAGE_INPUT_PATHS.map((path) => gitFileLastmod(rootDir, path)),
+    gitFileLastmod(rootDir, CRISIS_REGISTRY_PATH),
+    livePulse.capturedAt,
+  );
   const comparisonsLastmod = comparisonPageLastmod({
     contentVersion: COMPARISONS_CONTENT_VERSION,
     pathLastmods: COMPARISON_PAGE_LASTMOD_PATHS.map((path) => gitFileLastmod(rootDir, path)),
@@ -2196,6 +2207,7 @@ export async function loadCorpusData({
       useCases: 'scripts/build-use-cases.mjs',
       coverageInputs: [...COVERAGE_INPUT_PATHS],
       accuracy: ACCURACY_PAGE_SOURCE_PATH,
+      situationInputs: [...SITUATION_PAGE_INPUT_PATHS],
       comparisons: 'scripts/build-comparison-pages.mjs',
       sourceAttributionManifest: SOURCE_ATTRIBUTION_MANIFEST_PATH,
       sourcePageRenderer: SOURCE_PAGE_RENDERER_PATH,
@@ -2219,6 +2231,7 @@ export async function loadCorpusData({
       useCases: useCasesLastmod,
       coverage: coverageLastmod,
       accuracy: accuracyLastmod,
+      situation: situationLastmod,
       comparisons: comparisonsLastmod,
       sources: sourcesLastmod,
     },
@@ -2400,6 +2413,7 @@ function pageDocument({
         <a href="/tools/">Live tools</a>
         <a href="/research/">Research</a>
         <a href="/accuracy/">Accuracy</a>
+        <a href="/monitor-the-situation/">Situation</a>
         <a href="/use-cases/">Use cases</a>
         <a href="/reference/changelog/">Changelog</a>
         <a href="/blog/glossary/">Glossary</a>`;
@@ -4807,7 +4821,7 @@ ${crises.map((crisis) => `        <a class="card" href="/crises/${escapeHtml(cri
       <h2>How these trackers are scoped</h2>
       <p>Every tracker names its covered countries up front and never silently widens. Metrics are monthly country-level conflict summaries — recorded events, political-violence events, fatalities, and demonstrations — from the UN OCHA <a href="https://data.humdata.org/hapi">Humanitarian API (HDX HAPI)</a>. A combined total is shown only when every covered country reports the same reference month; otherwise per-country figures stand alone.</p>
       <h2>What they are not</h2>
-      <p>These are bounded pulses, not battlefield maps, casualty ledgers, or forecasts. Missing countries are reported as unavailable rather than zero, and event-level context lives in the <a href="/dashboard">live dashboard</a> with its map layers and independent signals.</p>
+      <p>These are bounded pulses, not battlefield maps, casualty ledgers, or forecasts. Missing countries are reported as unavailable rather than zero, and event-level context lives in the <a href="/dashboard">live dashboard</a> with its map layers and independent signals. All trackers appear by region, with current headlines, chokepoint status and internet outages, on the <a href="/monitor-the-situation/">monitor the situation</a> board.</p>
       <p class="source">Scope source: <a href="${CRISIS_REGISTRY_URL}" data-snapshot-source="${CRISIS_REGISTRY_PATH}">World Monitor crisis registry</a>. Live metrics: HAPI/HDX humanitarian conflict summaries through the World Monitor API.</p>`;
   return pageDocument({
     baseUrl,
@@ -5186,6 +5200,7 @@ function renderToolsIndex({ baseUrl, lastmod, crisisCount, chokepointCount }) {
         <a class="card" href="/tools/signal-convergence/"><strong>Geographic signal convergence</strong><br><span>Named multi-domain correlation score</span></a>
         <a class="card" href="/chokepoints/"><strong>Maritime chokepoint status</strong><br><span>${chokepointCount} canonical waterways</span></a>
         <a class="card" href="/crises/"><strong>Bounded crisis trackers</strong><br><span>${crisisCount} curated geographic scopes</span></a>
+        <a class="card" href="/monitor-the-situation/"><strong>Monitor the situation</strong><br><span>Headlines, crisis trackers, chokepoints and outages on one board</span></a>
 ${LIVE_TOPIC_PAGES.map((page) => `        <a class="card" href="${escapeHtml(page.path)}"><strong>${escapeHtml(page.h1)}</strong><br><span>${escapeHtml(page.question)}</span></a>`).join('\n')}
       </div>
       <h2>How these tools work</h2>
@@ -5639,6 +5654,12 @@ function buildManifest({ data, baseUrl, changelogPageCount }) {
         routes: [],
         sourceCapturedAt: data.livePulse.capturedAt,
       },
+      situation: {
+        count: 1,
+        index: SITUATION_PAGE_PATH,
+        routes: [],
+        sourceCapturedAt: data.livePulse.capturedAt,
+      },
       comparisons: {
         count: COMPARISON_PAGES.length + 1,
         index: '/compare/',
@@ -5943,6 +5964,17 @@ export async function buildCorpus({
       ),
       catalog: includedInDataCatalog(baseUrl),
     },
+  });
+
+  writeSituationPage({
+    outDir,
+    baseUrl,
+    lastmod: data.lastmod.situation,
+    tpl: { escapeHtml, absoluteUrl, breadcrumbLd, pageDocument },
+    crises: data.crises,
+    livePulse: data.livePulse,
+    hubRows: chokepointHubRows,
+    snapshotPath: data.sources.livePulseSnapshot,
   });
 
   writeComparisonPages({

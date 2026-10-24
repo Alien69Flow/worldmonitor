@@ -113,6 +113,7 @@ import { LIVE_TOPIC_PAGES } from '../scripts/live-pages/index.mjs';
 import { RELATED_READING_PATH } from '../scripts/related-reading.mjs';
 import { MAX_RELATED_COUNTRIES } from '../scripts/country-related-links.mjs';
 import { ACCURACY_CONTENT_VERSION } from '../scripts/build-accuracy-page.mjs';
+import { SITUATION_CONTENT_VERSION, SITUATION_PAGE_INPUT_PATHS } from '../scripts/build-situation-page.mjs';
 import { COMPARISONS_CONTENT_VERSION } from '../scripts/build-comparison-pages.mjs';
 import { shiftLivePulseDates } from './helpers/shift-live-pulse-dates.mjs';
 import { rawCatalogProviderNames, rawManifestActiveEntries } from './helpers/raw-catalog-providers.mjs';
@@ -2333,6 +2334,8 @@ describe('crawlable corpus generator', () => {
       assert.equal(manifest.sections.research.count, 1);
       assert.equal(manifest.sections.useCases.count, 3);
       assert.equal(manifest.sections.accuracy.count, 1);
+      assert.equal(manifest.sections.situation.count, 1);
+      assert.equal(manifest.sections.situation.index, '/monitor-the-situation/');
   assert.equal(manifest.sections.comparisons.count, 13);
       assert.equal(manifest.sections.sources.count, manifest.sections.sources.routes.length + 1);
       assert.ok(manifest.sections.sources.routes.length > 1);
@@ -2375,6 +2378,8 @@ describe('crawlable corpus generator', () => {
         ...manifest.sections.coverage.routes,
         manifest.sections.accuracy.index,
         ...manifest.sections.accuracy.routes,
+        manifest.sections.situation.index,
+        ...manifest.sections.situation.routes,
         manifest.sections.comparisons.index,
         ...manifest.sections.comparisons.routes,
         manifest.sections.changelog.index,
@@ -2790,6 +2795,7 @@ describe('crawlable corpus generator', () => {
         'sources/index.html',
         'accuracy/index.html',
         'accuracy/scorecard.json',
+        'monitor-the-situation/index.html',
         'crawlable-corpus.json',
       ]) {
         assert.ok(existsSync(join(outDir, path)), `missing generated file ${path}`);
@@ -5942,6 +5948,8 @@ describe('live-pulse snapshot injection (#7533)', () => {
         CRISIS_PAGE_CONTENT_VERSION,
         COMPARISONS_CONTENT_VERSION,
         ACCURACY_CONTENT_VERSION,
+        SITUATION_CONTENT_VERSION,
+        ...SITUATION_PAGE_INPUT_PATHS.map((path) => gitFileLastmod(repoRoot, path)),
         ...COMPARISON_PAGE_LASTMOD_PATHS.map((path) => gitFileLastmod(repoRoot, path)),
       ].filter(Boolean).sort().at(-1);
       const pulseDate = !latestOther || latestOther < today ? today : dayAfter(latestOther);
@@ -6069,6 +6077,15 @@ describe('live-pulse snapshot injection (#7533)', () => {
               pulseDate,
             ),
             pageFor(manifest.sections.accuracy.index),
+          ]],
+          ['situation', [
+            laterDate(
+              SITUATION_CONTENT_VERSION,
+              ...data.sources.situationInputs.map((path) => gitFileLastmod(repoRoot, path)),
+              gitFileLastmod(repoRoot, data.sources.crisisRegistry),
+              pulseDate,
+            ),
+            pageFor(manifest.sections.situation.index),
           ]],
           ['sources', [
             sourcePageLastmod({
