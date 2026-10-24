@@ -40,6 +40,7 @@ import {
   countryMetaDescription,
   COUNTRY_PAGE_CONTENT_VERSION,
   CRISIS_PAGE_CONTENT_VERSION,
+  CRISIS_TRACKED_BY,
   DATASET_SCHEMA_CONTENT_VERSION,
   datasetObservationCoverage,
   datasetTemporalCoverage,
@@ -54,6 +55,8 @@ import {
   hasObservedValue,
   laterDate,
   loadCorpusData,
+  normalizeCrisisEditorial,
+  renderCrisisCountryReadings,
   MAX_LIVE_PULSE_SNAPSHOT_AGE_DAYS,
   MAX_TWENTY_FOUR_HOUR_MOVEMENT_CLAIM_AGE_DAYS,
   assertLivePulseMovementClaim,
@@ -93,7 +96,10 @@ import { buildSitemapEntries } from '../scripts/build-sitemap.mjs';
 import { buildLlmsFullText } from '../scripts/build-llms-full.mjs';
 import { htmlToMarkdown } from '../api/_md-url-twin.ts';
 import {
+  auditCorpusFamily,
   auditMicrostateCorpusSimilarity,
+  CORPUS_FAMILY_LIMITS,
+  corpusFamilyViolations,
   maskedSentences,
   wordShingles,
 } from '../scripts/audit-microstate-corpus-similarity.mjs';
@@ -6004,8 +6010,11 @@ describe('live-pulse snapshot injection (#7533)', () => {
           ['crises', [
             laterDate(
               gitFileLastmod(repoRoot, data.sources.crisisRegistry),
+              gitFileLastmod(repoRoot, data.sources.crisisEditorial),
               gitFileLastmod(repoRoot, RELATED_READING_PATH),
               pulseDate,
+              data.resilience.capturedAt,
+              ...data.crises.map((crisis) => crisis.editorial.lastReviewed),
               CRISIS_PAGE_CONTENT_VERSION,
             ),
             'crises/index.html',
@@ -6180,7 +6189,7 @@ describe('live-pulse snapshot injection (#7533)', () => {
   // #7533-allowlist: 2026-01-02 x12 2026-01-05 x1 2026-01-09 x1 2026-01-15 x10 — laterDate unit pins, synthetic resolver-test snapshots, committed pulse fixture date (test-owned)
   // #7533-allowlist: 2026-01-01 x2 2026-01-31 x2 — datasetTemporalCoverage observation-interval range fixture
   // #7533-allowlist: 2025-05-28 x2 2026-02-14 x4 — shiftLivePulseDates unit-test fixtures (derived from 2026-01-15 +-30/232d)
-  // #7533-allowlist: 2026-02-03 x2 2026-02-30 x1 2026-02-31 x1 — laterDate unit pin; invalid-calendar CII/chokepoint timestamp fixtures
+  // #7533-allowlist: 2026-02-03 x2 2026-02-30 x2 2026-02-31 x1 2001-02-29 x1 — laterDate unit pin; invalid-calendar CII/chokepoint timestamp and crisis-editorial date fixtures
   // #7533-allowlist: 2026-03-04 x6 2026-03-14 x2 2026-04-09 x1 2026-05-01 x2 — laterDate unit pin; resolveChokepointObservation fallback constants
   // #7533-allowlist: 2026-05-28 x2 — datasetTemporalCoverage pure-function fixture
   // #7533-allowlist: 2026-06-01 x2 2026-07-28 x3 — synthetic git-commit and sitemap stub dates
@@ -8029,4 +8038,177 @@ it('retains API country-name aliases through the final country page renderer', a
     assert.ok(html.includes(`${name} announces new trade rules while its travel advisory is Exercise Increased Caution. [1][E1]`));
     assert.ok(!html.includes('<h3>Situation now</h3>'), 'Recent developments already lists the situation');
   }
+});
+
+describe('crisis tracker editorial (#8605)', () => {
+  const registry = JSON.parse(readFileSync(join(repoRoot, 'shared/crawlable-crises.json'), 'utf8'));
+  const editorial = JSON.parse(readFileSync(join(repoRoot, 'scripts/data/crisis-editorial.json'), 'utf8'));
+  const crises = registry.map((crisis) => ({ slug: crisis.slug }));
+  const withEntry = (slug, patch) => editorial.map((entry) => (entry.slug === slug ? patch(structuredClone(entry)) : entry));
+  const first = editorial[0].slug;
+
+  it('accepts the committed editorial for every registry crisis', () => {
+    const bySlug = normalizeCrisisEditorial(editorial, crises);
+    assert.deepEqual([...bySlug.keys()].sort(), registry.map((crisis) => crisis.slug).sort());
+  });
+
+  it('fails the build when a crisis loses its editorial entry', () => {
+    assert.throws(
+      () => normalizeCrisisEditorial(editorial.filter((entry) => entry.slug !== first), crises),
+      new RegExp(`Crisis editorial missing for ${first}`),
+    );
+  });
+
+  it('requires a source URL on every timeline milestone', () => {
+    assert.throws(
+      () => normalizeCrisisEditorial(withEntry(first, (entry) => {
+        delete entry.timeline[0].sourceUrl;
+        return entry;
+      }), crises),
+      /timeline 1 needs a valid source URL/,
+    );
+  });
+
+  it('rejects Wikipedia, plain-http and unsourced background citations', () => {
+    for (const [sourceUrls, message] of [
+      [['https://en.wikipedia.org/wiki/Example'], /cites Wikipedia/],
+      [['http://reliefweb.int/report'], /source must use https/],
+      [[], /background paragraph without a source/],
+    ]) {
+      assert.throws(
+        () => normalizeCrisisEditorial(withEntry(first, (entry) => {
+          entry.background[0].sourceUrls = sourceUrls;
+          return entry;
+        }), crises),
+        message,
+      );
+    }
+  });
+
+  it('rejects impossible calendar days in review and timeline dates', () => {
+    // Date.parse rolls 2026-02-30 over to March 2 instead of failing.
+    assert.throws(
+      () => normalizeCrisisEditorial(withEntry(first, (entry) => {
+        entry.lastReviewed = '2026-02-30';
+        return entry;
+      }), crises),
+      /needs an ISO lastReviewed date/,
+    );
+    assert.throws(
+      () => normalizeCrisisEditorial(withEntry(first, (entry) => {
+        entry.timeline[0].date = '2001-02-29';
+        return entry;
+      }), crises),
+      /timeline 1 needs a YYYY-MM or YYYY-MM-DD date/,
+    );
+    assert.doesNotThrow(() => normalizeCrisisEditorial(withEntry(first, (entry) => {
+      entry.timeline[0].date = entry.timeline[0].date.slice(0, 7);
+      return entry;
+    }), crises));
+  });
+
+  it('rejects an out-of-order timeline and a watch item naming no real dashboard view', () => {
+    assert.throws(
+      () => normalizeCrisisEditorial(withEntry(first, (entry) => {
+        entry.timeline.reverse();
+        return entry;
+      }), crises),
+      /timeline must be in chronological order/,
+    );
+    assert.throws(
+      () => normalizeCrisisEditorial(withEntry(first, (entry) => {
+        entry.whatToWatch[0].trackedBy = 'Crystal Ball';
+        return entry;
+      }), crises),
+      /names an unknown dashboard surface: Crystal Ball/,
+    );
+    // A static reference layer cannot show the change an indicator asks for.
+    assert.throws(
+      () => normalizeCrisisEditorial(withEntry(first, (entry) => {
+        entry.whatToWatch[0].trackedBy = 'Conflict Zones';
+        return entry;
+      }), crises),
+      /names an unknown dashboard surface: Conflict Zones/,
+    );
+  });
+
+  it('names only panels and layers that exist in the dashboard config', () => {
+    const panels = readFileSync(join(repoRoot, 'src/config/panels.ts'), 'utf8');
+    const layers = readFileSync(join(repoRoot, 'src/config/map-layer-definitions.ts'), 'utf8');
+    for (const [name, kind] of CRISIS_TRACKED_BY) {
+      const quoted = `'${name}'`;
+      assert.ok((kind === 'panel' ? panels : layers).includes(quoted), `${kind} ${name} must exist in the dashboard config`);
+    }
+  });
+
+  it('renders every crisis page past 700 main-text words with family overlap under 0.30', async () => {
+    const { outDir } = await defaultCorpusBuild();
+    const audit = auditCorpusFamily({ corpusDir: outDir, family: 'crises' });
+    assert.equal(audit.pageCount, registry.length);
+    assert.deepEqual(CORPUS_FAMILY_LIMITS.crises, { minWords: 700, maxMeanJaccard: 0.3 });
+    assert.deepEqual(corpusFamilyViolations(audit), []);
+  });
+
+  it('flags thin or converging family pages and refuses to check a family with no limits', () => {
+    const pages = [{ route: '/crises/a/', words: 650 }, { route: '/crises/b/', words: 900 }];
+    assert.deepEqual(corpusFamilyViolations({ family: 'crises', pages, meanPairwiseJaccard: 0.31 }), [
+      '/crises/a/ has 650 main-text words; the floor is 700',
+      'crises mean pairwise 5-shingle overlap is 0.310; the ceiling is 0.3',
+    ]);
+    assert.throws(
+      () => corpusFamilyViolations({ family: 'blog', pages, meanPairwiseJaccard: 0 }),
+      /No --check limits are defined for the blog family/,
+    );
+  });
+
+  it('rejects a family page too short to form a 5-word shingle', () => {
+    const corpusDir = mkdtempSync(join(tmpdir(), 'wm-family-audit-'));
+    try {
+      for (const [slug, body] of [['a', 'Four words only here.'], ['b', 'Another page with plenty of words for one shingle.']]) {
+        mkdirSync(join(corpusDir, 'crises', slug), { recursive: true });
+        writeFileSync(join(corpusDir, 'crises', slug, 'index.html'), `<!doctype html><html><body><main>${body}</main></body></html>`);
+      }
+      assert.throws(
+        () => auditCorpusFamily({ corpusDir, family: 'crises' }),
+        /\/crises\/a\/ must contain enough <main> content for a 5-word shingle/,
+      );
+    } finally {
+      rmSync(corpusDir, { recursive: true, force: true });
+    }
+  });
+
+  it('agrees the verb and drops "highest" when one of several countries has a CII reading', () => {
+    const crisis = { coverage: [{ code: 'YE', name: 'Yemen' }, { code: 'DJ', name: 'Djibouti' }, { code: 'ER', name: 'Eritrea' }] };
+    const html = renderCrisisCountryReadings({
+      crisis,
+      countryByCode: new Map(),
+      ciiByCode: new Map([['YE', { score: 81, band: 'Critical', trend: 'Rising +2' }]]),
+      rankedCount: 170,
+    });
+    assert.match(html, /Only Yemen, of the 3 covered countries, has a Country Instability Index reading: 81 \(Critical\)\./);
+    assert.doesNotMatch(html, /1 of the 3 covered countries have|The highest is/);
+  });
+
+  it('cites each milestone and the review date on the rendered page', async () => {
+    const { outDir } = await defaultCorpusBuild();
+    for (const entry of editorial) {
+      const window = new Window();
+      try {
+        window.document.write(read(outDir, `crises/${entry.slug}/index.html`));
+        const items = [...window.document.querySelectorAll('main [data-crisis-timeline] li')];
+        assert.equal(items.length, entry.timeline.length, `${entry.slug} renders every milestone`);
+        items.forEach((item, index) => {
+          assert.equal(item.querySelector('a')?.getAttribute('href'), new URL(entry.timeline[index].sourceUrl).href);
+        });
+        assert.equal(
+          window.document.querySelector('main [data-crisis-reviewed] time')?.getAttribute('datetime'),
+          entry.lastReviewed,
+        );
+        const readings = window.document.querySelectorAll('main [data-crisis-readings] tbody tr');
+        assert.equal(readings.length, registry.find((crisis) => crisis.slug === entry.slug).coverage.length);
+      } finally {
+        window.close();
+      }
+    }
+  });
 });
