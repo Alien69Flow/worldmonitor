@@ -111,6 +111,7 @@
       "shared/ais-watchdog.js",
       "shared/ais-vessel-type.js",
       "shared/chokepoint-transit-gates.js",
+      "shared/chokepoint-transit-store.js",
       "shared/chokepoint-transit-tracker.js",
       "shared/chokepoint-transit-window.js",
       "shared/chokepoint-threat-levels.js",

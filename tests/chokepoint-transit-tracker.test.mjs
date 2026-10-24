@@ -154,6 +154,6 @@ describe('chokepoint transit gates', () => {
   });
 
   it('is what the relay counts with', () => {
-    assert.match(relaySrc, /createTransitTracker\(\{\s*gates: CHOKEPOINT_TRANSIT_GATES,/);
+    assert.match(relaySrc, /createDurableTransitTracker\(\{\s*gates: CHOKEPOINT_TRANSIT_GATES,/);
   });
 });
