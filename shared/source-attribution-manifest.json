@@ -3066,6 +3066,21 @@
       ]
     },
     {
+      "host": "data.stats.gov.cn",
+      "provider": "data.stats.gov.cn",
+      "kind": "structured",
+      "observed": true,
+      "catalogActive": false,
+      "license": "NBS Terms of Service section III permits statistical data download and use, with NBS attribution (https://www.stats.gov.cn/english/nbs/200701/t20070104_59236.html; checked 2026-10-24). Saved-response extraction only; canonical publication remains blocked by missing source clocks. No authenticated download, application-code reuse or access bypass.",
+      "attribution": "Quoted from the website of the National Bureau of Statistics: www.stats.gov.cn. Retain the National Data source URL and exact indicator reference.",
+      "status": "reviewed",
+      "references": [
+        {
+          "path": "scripts/china-macro/extract-nbs-national-data.mjs"
+        }
+      ]
+    },
+    {
       "host": "data.tps.ca",
       "provider": "Toronto Police Service Open Data",
       "kind": "structured",
