@@ -707,6 +707,15 @@ jobs:
       - uses: ./.github/actions/install-root-deps
       - run: npm run test:sidecar
 
+      - name: Download the shipped Node.js runtime
+        run: bash scripts/download-node.sh --target x86_64-unknown-linux-gnu
+
+      - name: Test sidecar with the shipped Node.js runtime
+        run: |
+          export PATH="$PWD/src-tauri/sidecar/node:$PATH"
+          node --version
+          npm run test:sidecar
+
   # Desktop drift gates (#5902): path-conditional so unrelated PRs skip them
   # (deploy-gate counts "skipped" as passing). desktop-config is the cheap
   # install-free surface — version consistency, release packaging script

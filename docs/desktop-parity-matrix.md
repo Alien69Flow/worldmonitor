@@ -138,9 +138,18 @@ release-candidate checklist:
    `workflow_dispatch` defaults to `draft: false` so a dispatched build is
    actually served, and the unbuildable tech/finance packaging surface is gone.
    `tests/desktop-one-binary-model.test.mjs` fails if any surface drifts back.
-2. Bundled Node 22.23.4 vs CI Node 24 everywhere; SHASUMS fetched without GPG
-   verification. → #5909. The bundle stays on 22.x because the Node 24 macOS
-   binaries require macOS 13.5, while 22.x runs on macOS 11.
+2. **#5909 addressed:** the bundle pins Node 22.23.4. The `sidecar` CI job
+   runs `test:sidecar` on both repository Node 24 and the exact runtime from
+   `scripts/download-node.sh`. The bundle stays on 22.x because the Node 24
+   macOS binaries require macOS 13.5, while 22.x runs on macOS 11.
+   The downloader requires GnuPG and verifies `SHASUMS256.txt.sig` before
+   checking or extracting the archive. It trusts only the active release
+   keyring from a pinned commit of [Node's release-key repository](https://github.com/nodejs/release-keys),
+   with a separate pinned SHA256 digest. It uses a temporary GPG home and
+   never retrieves missing keys. To update the keyring, review the upstream
+   key changes and update both `NODE_RELEASE_KEYS_COMMIT` and
+   `NODE_RELEASE_KEYS_SHA256` in the downloader. Verify the intended Node
+   release against the updated keyring before committing the change.
 3. README/docs drift: "Stable" label, missing Linux ARM64 row, `windows-exe`
    badges vs `windows-msi` in-app, wrong updater host/TTL in
    `docs/desktop-app.mdx`, phantom 50 MB cap in `docs/usage-rate-limits.mdx`,
