@@ -1479,7 +1479,18 @@ export class EventHandlerManager implements AppModule {
     // async flyTo that makes getCenter() return stale intermediate coordinates.
     // The cases, and why `view` alone is not one, are documented on the
     // predicate in src/utils/urlState.ts.
-    if (!urlHasAsyncFlyTo(this.ctx.initialUrlState)) {
+    if (urlHasAsyncFlyTo(this.ctx.initialUrlState)) {
+      // Keep the deep-link coordinates out of the URL until an animated
+      // renderer has reached them. SVG applies viewport changes synchronously,
+      // and may finish before this listener is attached, so this settled write
+      // is also what preserves its initial lat/lon URL state.
+      void this.ctx.map.whenViewportSettled().then(() => {
+        if (!this.ctx.isDestroyed) this.debouncedUrlSync();
+      }).catch(() => {
+        // A superseding interaction or renderer switch owns the newer state;
+        // its normal state-change listener will sync that viewport.
+      });
+    } else {
       this.debouncedUrlSync();
     }
   }
