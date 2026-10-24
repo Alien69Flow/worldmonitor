@@ -7,7 +7,7 @@
   "totalTolerancePct": 0.25,
   "totalToleranceBytes": 16384,
   "total": {
-    "raw": 455953
+    "raw": 466870
   },
   "chunks": {
     "analytics": {
@@ -55,7 +55,7 @@
       "files": 1
     },
     "main": {
-      "raw": 123251,
+      "raw": 134168,
       "files": 1
     },
     "map-layer-definitions": {
@@ -101,11 +101,11 @@
   },
   "deferred": {
     "total": {
-      "raw": 1465407
+      "raw": 1460759
     },
     "chunks": {
       "App": {
-        "raw": 927577,
+        "raw": 922929,
         "files": 1
       },
       "ai-flow-settings": {
