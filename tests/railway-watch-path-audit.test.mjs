@@ -129,6 +129,7 @@ const NIXPACKS_BUILD_FILES = Object.freeze([
   'scripts/package.json',
   'scripts/package-lock.json',
   'scripts/nixpacks.toml',
+  'scripts/railpack.json',
 ]);
 
 // A `nixpacks-root-repo` service builds from the repository root, so it reads
@@ -1426,10 +1427,10 @@ describe('closure detection layers', () => {
   });
 
   describe('the build inputs each deploy mode contributes', () => {
-    it('gives a scripts-rooted nixpacks service its own three build files', () => {
+    it('gives a scripts-rooted service its own four build files', () => {
       assert.deepEqual(
         [...buildInputsFor({ deployMode: 'nixpacks-root-scripts' }, repoRoot)].sort(),
-        ['scripts/nixpacks.toml', 'scripts/package-lock.json', 'scripts/package.json'],
+        ['scripts/nixpacks.toml', 'scripts/package-lock.json', 'scripts/package.json', 'scripts/railpack.json'],
       );
     });
 
@@ -1543,7 +1544,7 @@ describe('closure detection layers', () => {
     const missing = [...buildInputsFor(entry, repoRoot)]
       .filter((file) => !watched.has(file))
       .sort();
-    assert.deepEqual(missing, ['scripts/nixpacks.toml', 'scripts/package-lock.json']);
+    assert.deepEqual(missing, ['scripts/nixpacks.toml', 'scripts/package-lock.json', 'scripts/railpack.json']);
   });
 });
 
