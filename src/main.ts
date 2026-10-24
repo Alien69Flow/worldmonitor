@@ -565,6 +565,18 @@ const chunkReloadStorageKey = installChunkReloadGuard(__BUILD_HASH__);
 // Convex user row (users.ensureRecord), which new API keys inherit.
 // Best-effort: blocked cookies mean "no attribution".
 captureAgentRefFromSearch(window.location.search, agentRefStorage());
+// First-touch channel (UTM, referrer host, landing page), stamped onto the
+// Dodo subscription at checkout. The visit is read now, before any URL
+// rewrite; the module itself loads off the main chunk (bundle budget).
+const acquisitionVisit = {
+  search: window.location.search,
+  pathname: window.location.pathname,
+  referrer: document.referrer,
+  now: Date.now(),
+};
+void import('../shared/acquisition-source')
+  .then((m) => { m.captureFirstTouchAcquisition(m.browserAcquisitionStorage(), acquisitionVisit); })
+  .catch(() => { /* no attribution */ });
 
 // Product analytics are secondary startup work; RUM starts once the trusted
 // dashboard entry executes so it can observe page-load vitals.
