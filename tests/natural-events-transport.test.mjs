@@ -227,7 +227,10 @@ test('EONET retries the dual-family connect failure over IPv4 and destroys its d
   });
   const result = await run(transport);
   assert.deepEqual(families, [4]);
-  assert.equal(dispatcher.destroyed, true);
+  await assert.rejects(
+    fetch(`http://eonet.fixture.invalid:${server.address().port}`, { dispatcher }),
+    error => error.cause?.code === 'UND_ERR_DESTROYED',
+  );
   assert.equal(transport.calls.get('eonet'), 2);
   for (const [source, count] of transport.calls) if (source !== 'eonet') assert.equal(count, 1, source);
   assert.ok(result.events.some(item => item.id === event.id));
@@ -270,7 +273,10 @@ test('failed IPv4 retry destroys its dispatcher and preserves the previous succe
     now, previousSources: initial._sourceSnapshots, fetchFn: transport.fetchFn,
     fetchHkoWarningsFn: async () => ({ warnings: [], dataAvailable: true, sourceDecision: { status: 'used' } }),
   });
-  assert.equal(dispatcher.destroyed, true);
+  await assert.rejects(
+    fetch('http://eonet.fixture.invalid', { dispatcher }),
+    error => error.cause?.code === 'UND_ERR_DESTROYED',
+  );
   assert.equal(transport.calls.get('eonet'), 2);
   for (const [source, count] of transport.calls) if (source !== 'eonet') assert.equal(count, 1, source);
   const health = naturalEventsAfterPublish(result).freshnessMetaPatch.sourceHealth.eonet;
