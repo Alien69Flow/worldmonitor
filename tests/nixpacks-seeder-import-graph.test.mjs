@@ -204,6 +204,50 @@ describe('self-registered tsx member detection', () => {
   });
 });
 
+// The bare-specifier budget proves a package is DECLARED in scripts/package.json,
+// not which version the container gets. Tests resolve from the ROOT
+// node_modules, so a package declared in both manifests at different majors is
+// tested against one API and shipped with another. #9608 bumped root undici
+// 7 → 8 and taught seed-natural-events.mjs the v8-only `Dispatcher1Wrapper`;
+// scripts/ stayed on 7.30.1, so the suite was green and every cron tick died
+// at import with "Named export 'Dispatcher1Wrapper' not found".
+function lockedVersion(lockPath, name) {
+  return JSON.parse(readFileSync(lockPath, 'utf-8')).packages?.[`node_modules/${name}`]?.version;
+}
+
+// Breaking-change boundary under semver: the major, or the minor while on 0.x.
+function compatLine(version) {
+  const [major, minor] = version.split('.');
+  return major === '0' ? `0.${minor}` : major;
+}
+
+describe('root and scripts/ lock the same major of every shared dependency', () => {
+  const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
+  const rootDeclared = new Set([
+    ...Object.keys(rootPkg.dependencies ?? {}),
+    ...Object.keys(rootPkg.devDependencies ?? {}),
+  ]);
+  const shared = [...installedPackages].filter((name) => rootDeclared.has(name));
+
+  it('finds shared dependencies to compare (coverage canary)', () => {
+    assert.ok(shared.includes('undici'), 'undici is no longer declared in both manifests — retarget this canary');
+  });
+
+  for (const name of shared) {
+    it(name, () => {
+      const rootVersion = lockedVersion(join(root, 'package-lock.json'), name);
+      const scriptsVersion = lockedVersion(join(scriptsDir, 'package-lock.json'), name);
+      assert.ok(rootVersion && scriptsVersion, `${name} missing from a lockfile (root=${rootVersion}, scripts=${scriptsVersion})`);
+      assert.equal(
+        compatLine(scriptsVersion),
+        compatLine(rootVersion),
+        `${name}: root locks ${rootVersion} but scripts/ locks ${scriptsVersion}. Tests run against the root ` +
+          `copy while the Railway container installs scripts/package-lock.json — bump both together`,
+      );
+    });
+  }
+});
+
 describe('nixpacks-root-scripts seeder import graphs (#5266)', () => {
   it('deploy config still yields the service list the guard is meant to cover', () => {
     assert.ok(
