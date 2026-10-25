@@ -251,6 +251,7 @@ const REQUIRED_TEST_JOBS = [
   'variant-smoke-full',
   'resilience-validation-smoke',
   'desktop-config',
+  'desktop-node-windows',
   'desktop-rust',
 ] as const;
 
@@ -263,6 +264,7 @@ const TIMEOUT_CAPPED_TEST_JOBS = [
   'variant-smoke-full',
   'resilience-validation-smoke',
   'desktop-config',
+  'desktop-node-windows',
   'desktop-rust',
 ] as const;
 
@@ -319,6 +321,7 @@ const REQUIRED_DESKTOP_CONFIG_INPUTS = [
   'scripts/sync-desktop-version.mjs',
   'scripts/check-desktop-build-env.mjs',
   'scripts/check-rust-security-floors.mjs',
+  'scripts/download-node.sh',
 ] as const;
 
 const REQUIRED_DESKTOP_RUST_INPUTS = [
