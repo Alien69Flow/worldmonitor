@@ -1237,6 +1237,19 @@ export default defineSchema({
     occurredAt: v.number(),
   }).index("by_occurredAt", ["occurredAt"]),
 
+  // Dodo checkout sessions handed to buyers: the funnel step between Umami
+  // `checkout-start` and a Dodo payment attempt. See payments/checkoutSessionLog.ts.
+  checkoutSessionEvents: defineTable({
+    userId: v.string(),
+    productId: v.string(),
+    // Dodo session id; joins to a payment's `checkout_session_id`.
+    sessionId: v.optional(v.string()),
+    anonymous: v.boolean(),
+    occurredAt: v.number(),
+  })
+    .index("by_occurredAt", ["occurredAt"])
+    .index("by_user", ["userId"]),
+
   productPlans: defineTable({
     dodoProductId: v.string(),
     planKey: v.string(),

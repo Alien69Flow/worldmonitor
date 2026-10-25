@@ -229,6 +229,8 @@
 *Could not find public function for 'payments/checkout:internalCreateCheckout'*
 *Could not find public function for 'payments/checkoutRateLimitAlarm:recordCheckoutRateLimited'*
 *Could not find public function for 'payments/checkoutRateLimitAlarm:recordCheckoutTimedOut'*
+*Could not find public function for 'payments/checkoutSessionLog:countCheckoutSessions'*
+*Could not find public function for 'payments/checkoutSessionLog:recordCheckoutSessionCreated'*
 *Could not find public function for 'payments/repairStaleOnHoldDerivedState:run'*
 *Could not find public function for 'payments/seedProductPlans:seedProductPlans'*
 *Could not find public function for 'payments/subscriptionEmails:canSendBillingEmail'*

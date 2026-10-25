@@ -41,6 +41,7 @@ export const PERSONAL_DELETE_TABLES = [
   "apiUsageRollups",
   "apiPlanLimitNotices",
   "checkoutAdmissions",
+  "checkoutSessionEvents",
   "followedCountriesUserMeta",
   "users",
 ] as const;
@@ -141,6 +142,11 @@ async function takePersonalRows(
     case "checkoutAdmissions":
       return ctx.db
         .query("checkoutAdmissions")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .take(limit);
+    case "checkoutSessionEvents":
+      return ctx.db
+        .query("checkoutSessionEvents")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .take(limit);
     case "followedCountriesUserMeta":
