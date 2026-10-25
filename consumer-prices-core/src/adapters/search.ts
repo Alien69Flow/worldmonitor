@@ -623,6 +623,7 @@ export class SearchAdapter implements RetailerAdapter {
         productName: data.productName,
         sizeText: data.sizeText,
         item: validationConstraints,
+        marketCode: ctx.config.marketCode,
       });
 
       if (strictMode && !validator.ok) {
@@ -998,6 +999,9 @@ export class SearchAdapter implements RetailerAdapter {
         rawTitle: extracted.productName,
         rawBrand: null,
         rawSizeText: extracted.sizeText ?? null,
+        normalizedSize: itemConstraints
+          ? parseSize(extracted.sizeText, { baseUnit: itemConstraints.baseUnit, marketCode: ctx.config.marketCode }) ?? undefined
+          : undefined,
         imageUrl: null,
         categoryText: itemCategory,
         retailerSku: null,
