@@ -425,7 +425,7 @@ const LLM_PROVIDERS = [
       if (apiKey) h.Authorization = `Bearer ${apiKey}`;
       return h;
     },
-    extraBody: { think: false },
+    extraBody: { reasoning_effort: 'none' },
     timeout: 25_000,
   },
   {

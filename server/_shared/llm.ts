@@ -147,7 +147,7 @@ export function getProviderCredentials(
       apiUrl: new URL('/v1/chat/completions', baseUrl).toString(),
       model: overrides.model || process.env.OLLAMA_MODEL || 'llama3.1:8b',
       headers,
-      extraBody: { think: false },
+      extraBody: { reasoning_effort: 'none' },
     };
   }
 

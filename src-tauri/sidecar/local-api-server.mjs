@@ -100,6 +100,11 @@ const MAX_CONCURRENT_UPSTREAM = 6;
 // Mutable (not const) only so tests can shrink it -- production always runs
 // at the default.
 let _upstreamIdleTimeoutMs = 12000;
+// The configured Ollama server sends nothing until a non-streaming completion
+// ends, so its silence is inference. This bound outlasts the longest server
+// LLM deadline (60s), so the caller's own deadline ends a slow completion and
+// this only reclaims a slot from a server that truly hangs.
+let _ollamaIdleTimeoutMs = 90000;
 function acquireUpstreamSlot() {
   if (_activeUpstream < MAX_CONCURRENT_UPSTREAM) {
     _activeUpstream++;
@@ -207,16 +212,21 @@ function registerSidecarAllowedPrivateFetchOrigins(port, extraOrigins = []) {
   };
 }
 
+function isConfiguredOllamaOrigin(url) {
+  if (!process.env.OLLAMA_API_URL) return false;
+  try {
+    return url.origin === new URL(process.env.OLLAMA_API_URL).origin;
+  } catch {
+    return false;
+  }
+}
+
 function isAllowedPrivateSidecarFetch(url) {
   if (sidecarAllowedPrivateFetchOrigins.has(url.origin)) return true;
   // Desktop users can change Ollama settings without restarting the sidecar.
   // Trust only the current configured origin, never an address from a request.
-  if (process.env.LOCAL_API_MODE === 'tauri-sidecar' && process.env.OLLAMA_API_URL) {
-    try {
-      return url.origin === new URL(process.env.OLLAMA_API_URL).origin;
-    } catch { /* invalid configuration grants no private-network access */ }
-  }
-  return false;
+  // An invalid configuration grants no private-network access.
+  return process.env.LOCAL_API_MODE === 'tauri-sidecar' && isConfiguredOllamaOrigin(url);
 }
 
 async function assertSafeSidecarFetchUrl(url) {
@@ -308,7 +318,8 @@ globalThis.fetch = async function ipv4Fetch(input, init) {
       // Catches a peer that accepts the connection and then goes silent
       // forever (no error, no close, no data) -- the only stall shape none
       // of the listeners above ever observe.
-      req.setTimeout(_upstreamIdleTimeoutMs, () => {
+      const idleTimeoutMs = isConfiguredOllamaOrigin(url) ? _ollamaIdleTimeoutMs : _upstreamIdleTimeoutMs;
+      req.setTimeout(idleTimeoutMs, () => {
         req.destroy();
         settle(reject, new Error('upstream request idle-timed out'));
       });
@@ -2155,8 +2166,8 @@ async function dispatch(requestUrl, req, routes, context) {
   }
 }
 
-// Test seam: lets tests shrink ipv4Fetch's upstream idle timeout so a
-// silent-stall test doesn't have to wait out the real 12s production value.
+// Test seam: lets tests shrink ipv4Fetch's idle timeouts so a silent-stall
+// test doesn't have to wait out the real production values.
 // Production code never calls this.
 export const __testing__ = {
   isCloudPreferred,
@@ -2165,6 +2176,9 @@ export const __testing__ = {
   isYahooFinanceHost,
   setUpstreamIdleTimeoutMs(ms) {
     _upstreamIdleTimeoutMs = ms;
+  },
+  setOllamaIdleTimeoutMs(ms) {
+    _ollamaIdleTimeoutMs = ms;
   },
 };
 
