@@ -277,6 +277,8 @@ const EXCLUDED_FROM_MCP = new Map([
     'deferred to a future expanded intelligence tool. Not in v1 brainstorm inventory.'],
   ['gdelt:bulk:dyad-tension:v1',
     'intermediate: daily event buckets and replay cursor for get-pizzint-status tension scores; that dashboard endpoint remains deferred to a future expanded intelligence tool.'],
+  ['intelligence:tension-evidence:v1',
+    'derived: per-pair readings re-read from the strike, aviation, military flight, Taiwan Strait and sanctions keys, served only as the evidence get-pizzint-status attaches to its tension rows; that dashboard endpoint remains deferred to a future expanded intelligence tool.'],
   ['gdelt:bulk:country-events:v1',
     'intermediate: per-country daily GDELT conflict/protest buckets and baselines that feed the CII Conflict and Unrest components; agents read the result through the risk-score tools.'],
   ['intelligence:wsb-tickers:v1',

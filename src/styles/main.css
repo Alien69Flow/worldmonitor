@@ -14531,7 +14531,11 @@ a.prediction-link:hover {
   background: var(--bg);
   border: 1px solid var(--overlay-heavy);
   border-radius: 12px;
-  overflow: hidden;
+  /* Evidence lines can make the panel taller than a short window, and the
+     page itself does not scroll. */
+  max-height: calc(100vh - 72px);
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: 0 8px 32px var(--shadow-color);
 }
 
@@ -14697,6 +14701,14 @@ a.prediction-link:hover {
 
 .pizzint-tension-trend.stable {
   color: var(--text-dim);
+}
+
+.pizzint-tension-evidence {
+  padding: 0 0 4px;
+  font-size: calc(10px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.35;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
 }
 
 .pizzint-footer {

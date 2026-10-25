@@ -170,14 +170,15 @@ Each pair shows:
 - **Current tension score** (World Monitor's normalized score)
 - **Trend** (rising, falling, stable), against the pair's own usual weekly swing
 - **Percentage change**: the last seven days against the seven days before them
+- **Evidence**, when there is any: up to three non-news readings above their usual level, such as airport closures or military aircraft in the region
 
-This provides context for the activity levels. See the country-pair tension section below for scoring and data-availability rules.
+This provides context for the activity levels. See the country-pair tension section below for scoring and data-availability rules, and [evidence beside the scores](#evidence-beside-the-scores) for the readings.
 
 ### Backed by endpoints
 
 | Surface | Endpoint | Notes |
 |---|---|---|
-| Pentagon Pizza Index + GDELT pairs | `GET /api/intelligence/v1/get-pizzint-status` | Reads pizza activity and, with `include_gdelt=true`, independently computed World Monitor tension pairs. |
+| Pentagon Pizza Index + GDELT pairs | `GET /api/intelligence/v1/get-pizzint-status` | Reads pizza activity and, with `include_gdelt=true`, independently computed World Monitor tension pairs, each with its notable `evidence`. |
 | GPS/GNSS interference | `GET /api/intelligence/v1/list-gps-interference` | Reads normalized GPSJam Redis keys, with optional `region` filtering. |
 | OREF alerts for CII context | `GET /api/intelligence/v1/list-oref-alerts` | Direct RPC for live or history OREF data; see [Israel Sirens](/panels/oref-sirens) for the panel relay path. |
 | Security advisories | `GET /api/intelligence/v1/list-security-advisories` | Redis-backed advisory feed used by CII boosts and floors. |
@@ -273,6 +274,71 @@ starts no new ones. A failure or an overrun keeps the days that finished and
 never delays or fails the live publication. A run usually rebuilds two days and
 sometimes one when downloads are slow, so an empty window fills in 45 to 90
 runs, 11 to 22 hours.
+
+### Evidence beside the scores
+
+The GDELT score measures news coverage. Under a pair's score, the popup can
+also show readings from feeds that are not news coverage, when they are above
+their usual level. They never change the score.
+
+| Reading | Pairs (countries read) | Source keys | Current count | Usual level |
+|---|---|---|---|---|
+| Reported strikes | Israel–Iran (Israel, Iran); Iran–GCC (the six GCC members); Saudi Arabia–Yemen (Saudi Arabia, Yemen) | `conflict:iran-events:v1`, `conflict:strike-pressure:v1` | Strike reports in the last 72 hours, by the country where they landed | Three times the mean daily count in the strike tally, from its first stored day to the day before the 72 hours; needs 7 days |
+| Airports | US–Iran (Iran); Israel–Iran; Iran–GCC (GCC members and Iran); Saudi Arabia–Yemen; China–Taiwan (Taiwan); Russia–Ukraine (Russia) | `aviation:notam:closures:v2`, `aviation:delays:intl:v3` | Monitored airports closed (a NOTAM closure, or at least 80% of due flights cancelled), with most flights cancelled (at least 50%), or restricted by NOTAM | Mean daily peak in the evidence history; needs 7 days |
+| Military aircraft | See below | `military:surges:history:v1` | One operator's aircraft in the pair's theater, in the latest snapshot | Mean of the earlier snapshots from the same ADS-B feed, about six hours; needs 12 snapshots |
+| Chinese military aircraft, Chinese navy ships near Taiwan | China–Taiwan | `military:cross-strait-activity-bootstrap:v1` | Taiwan's Ministry of National Defense daily report, if no more than two days old | Its 90-day median, once that window has enough reporting days |
+| New US sanctions | US–Iran (Iran); US–Russia (Russia); US–China (China) | `sanctions:changes:v1` | Additions to the SDN, Consolidated and Commerce CSL lists naming the country in the last 7 days | Each list's weekly rate over the earlier weeks its changes were recorded, summed over the lists; needs 21 days |
+
+Military aircraft read one operator in one region, so an aircraft is counted
+once where theaters overlap: US–Iran counts US aircraft and Israel–Iran Israeli
+aircraft in the Iran theater; US–China counts US aircraft and China–Taiwan
+Chinese aircraft in the Taiwan theater; US–Russia counts US aircraft in the
+Baltic and Black Sea theaters; Russia–Ukraine counts Russian aircraft in the
+Black Sea theater; Saudi Arabia–Yemen counts Saudi aircraft in the Yemen and
+Red Sea theater.
+
+A reading shows when it reaches its floor and is at least 1.5 times its usual
+level. The floors are 3 strikes, 1 airport, 6 military aircraft, 20 Chinese
+aircraft, 10 Chinese ships and 3 sanctions additions. A disrupted airport shows
+before any usual level exists; every other reading waits for one. The popup
+shows at most three readings per pair and adds the usual level in parentheses.
+
+Limitations:
+
+- Strike reports place a strike where it landed, not who fired it, and include
+  interceptions and claims. Saudi Arabia belongs to both Iran–GCC and Saudi
+  Arabia–Yemen, so a strike on Riyadh counts for both. The feed covers the
+  Middle East only.
+- The strike feed keeps only its newest 400 events. When all of them fall
+  inside the 72 hours, older strikes in the window are missing, so the strike
+  reading is withheld until the feed reaches back past the window.
+- A sanctions list can be skipped for a while (unavailable, or a suspicious
+  snapshot held back). Its changes from that time are never recorded, so that
+  time is left out of that list's usual rate. A retained gap keeps the last
+  snapshot, and the list's changes are recorded when it returns, so its time
+  stays in.
+- The aircraft counts see only aircraft that broadcast ADS-B. No Chinese,
+  Russian or Saudi military aircraft appeared in the six hours of snapshots
+  checked on 2026-10-25, so those readings are usually zero.
+- Ukraine has no monitored airport. Airport names are English city names.
+- The strike tally keeps 30 days and began on 2026-10-19; the sanctions log
+  began on 2026-10-18. Until each has its minimum history, strikes and
+  sanctions have no usual level and do not show.
+
+The derived-signals bundle runs `scripts/seed-tension-evidence.mjs` every 15
+minutes. It writes `intelligence:tension-evidence:v1` as
+`{ updatedAt, live, days }`: `live` holds every pair's current readings, and
+`days` keeps one value per pair, reading and UTC day for 90 days (the daily
+peak for airports and military aircraft, the latest value for the rest).
+Strike days are copied from the tally for every day it still holds, so a
+missed run is repaired. The key has a 100-day TTL. Each source must be within its own health budget
+(strikes 45 minutes, airport delays 90, NOTAM closures 240, military aircraft
+30, Taiwan Strait 720, sanctions 720); a stale or malformed source drops only
+its readings, and a run with no readings at all keeps the last payload. Health
+checks `seed-meta:intelligence:tension-evidence` at a 45-minute budget once the
+first publish sets `seed-activated:intelligence:tension-evidence`. The API
+attaches only notable readings, ignores evidence older than 45 minutes, and
+serves the scores unchanged when the evidence is missing.
 
 ## Related Assets
 

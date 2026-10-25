@@ -421,6 +421,9 @@ const STANDALONE_KEYS = {
   // evicted or stale index stays invisible until the next weekly freeze.
   gdeltCountryArticles: 'gdelt:bulk:country-articles:v1',
   gdeltDyadTension: 'gdelt:bulk:dyad-tension:v1',
+  // Non-news evidence per tension pair, read only by get-pizzint-status for
+  // the tension popup, so monitored here.
+  tensionEvidence: 'intelligence:tension-evidence:v1',
   // Per-country GDELT conflict counts and own-baseline medians, read only by the
   // CII conflict component (get-risk-scores), so monitored here.
   gdeltCountryEvents: 'gdelt:bulk:country-events:v1',
@@ -1300,6 +1303,15 @@ const SEED_META = {
     cutover: {
       mode: 'activation-marker', fromKey: null, issue: 8676,
       activationKey: 'seed-activated:gdelt:bulk:dyad-tension',
+    },
+  },
+  // 15-minute derived-signals section; 45 = 3 missed runs.
+  tensionEvidence: {
+    key: 'seed-meta:intelligence:tension-evidence', maxStaleMin: 45,
+    activationKey: 'seed-activated:intelligence:tension-evidence',
+    cutover: {
+      mode: 'activation-marker', fromKey: null, issue: 8676,
+      activationKey: 'seed-activated:intelligence:tension-evidence',
     },
   },
   // Same materializer tick; pending until its first country-events publish
@@ -2275,6 +2287,8 @@ const ON_DEMAND_KEYS = new Set([
   'gdeltCountryArticles',
   'gdeltDyadTension',
   'gdeltCountryEvents',
+  // Written by scripts/seed-tension-evidence.mjs after each publish.
+  'tensionEvidence',
   // Relay strike-pressure tally: the marker is written after its first healthy publish.
   'strikePressure',
   // Scheduled producer. The marker is written only after a successful
@@ -2424,6 +2438,7 @@ const ACTIVATION_MARKERS = {
   // article index publishes with its seed-meta (#7748).
   gdeltCountryArticles: SEED_META.gdeltCountryArticles.activationKey,
   gdeltDyadTension: SEED_META.gdeltDyadTension.activationKey,
+  tensionEvidence: SEED_META.tensionEvidence.activationKey,
   gdeltCountryEvents: SEED_META.gdeltCountryEvents.activationKey,
   // Written by scripts/ais-relay.cjs after the first healthy strike-pressure publish.
   strikePressure: 'seed-activated:conflict:strike-pressure',

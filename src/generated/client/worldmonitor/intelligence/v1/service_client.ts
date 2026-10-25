@@ -166,6 +166,21 @@ export interface GdeltTensionPair {
   trend: TrendDirection;
   changePercent: number;
   region: string;
+  evidence: TensionEvidence[];
+}
+
+export interface TensionEvidence {
+  channel: string;
+  value: number;
+  baseline?: number;
+  countries: string[];
+  airports: TensionEvidenceAirport[];
+  observedAt: number;
+}
+
+export interface TensionEvidenceAirport {
+  name: string;
+  status: string;
 }
 
 export interface ClassifyEventRequest {

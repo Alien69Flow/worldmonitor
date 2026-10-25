@@ -15214,9 +15214,17 @@ paths:
                                     - "changePercent": 42.5
                                       "countries":
                                           - "US"
+                                      "evidence":
+                                          - "airports":
+                                              - "name": "WorldMonitor Analyst"
+                                                "status": "example"
+                                            "baseline": 1.5
+                                            "channel": "example"
+                                            "countries":
+                                                - "US"
+                                            "observedAt": 1717200000000
                                       "id": "example-id"
                                       "label": "example"
-                                      "region": "example"
                             schema:
                                 $ref: '#/components/schemas/worldmonitor_intelligence_v1_GetPizzintStatusResponse'
                 "400":
@@ -48489,7 +48497,49 @@ components:
                 region:
                     type: string
                     description: Geographic region.
+                evidence:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/worldmonitor_intelligence_v1_TensionEvidence'
             description: GdeltTensionPair represents a bilateral tension score between two countries from GDELT.
+        worldmonitor_intelligence_v1_TensionEvidence:
+            type: object
+            properties:
+                channel:
+                    type: string
+                    description: strikes, airports, military_aircraft, pla_aircraft, pla_ships or sanctions.
+                value:
+                    type: number
+                    format: double
+                    description: Current count over the channel's window.
+                baseline:
+                    type: number
+                    format: double
+                    description: Usual count over the same window, when there is enough history.
+                countries:
+                    type: array
+                    items:
+                        type: string
+                        description: ISO 3166-1 alpha-2 codes the signal names.
+                airports:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/worldmonitor_intelligence_v1_TensionEvidenceAirport'
+                observedAt:
+                    type: integer
+                    format: int64
+                    description: 'Source update time, as Unix epoch milliseconds.. Warning: Values > 2^53 may lose precision in JavaScript'
+            description: TensionEvidence is one non-news signal for a tension pair.
+        worldmonitor_intelligence_v1_TensionEvidenceAirport:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Airport city.
+                status:
+                    type: string
+                    description: closed, halted or restricted.
+            description: TensionEvidenceAirport is one disrupted airport.
         worldmonitor_intelligence_v1_ClassifyEventRequest:
             type: object
             properties:
