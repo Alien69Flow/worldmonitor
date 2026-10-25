@@ -662,6 +662,15 @@ describe('crawlable content corpus deployment contracts', () => {
     assert.ok(!packageJson.scripts['build:full'].includes('npm run build:blog &&'), 'build:full must not regenerate inventory facts inside build:blog');
   });
 
+  it('builds frontend assets on the host platform and keeps nginx on the target platform', () => {
+    const stages = frontendDockerfileSource.match(/^FROM .+$/gm);
+    assert.equal(stages.length, 2);
+    assert.match(stages[0], /^FROM --platform=\$BUILDPLATFORM node:.+ AS builder$/);
+    assert.match(stages[1], /^FROM nginx:.+ AS runtime$/);
+    assert.match(frontendDockerfileSource, /^COPY --from=builder \/app\/dist\/ \.\/$/m);
+    assert.doesNotMatch(frontendDockerfileSource, /^COPY --from=builder .*node_modules/m);
+  });
+
   it('builds Vercel when corpus source files change', () => {
     assert.ok(vercelIgnoreSource.includes("'CHANGELOG.md'"));
     assert.ok(vercelIgnoreSource.includes("'docs/snapshots/'"));
