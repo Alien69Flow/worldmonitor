@@ -458,6 +458,12 @@ function buildSentryInitOptions(): Parameters<SentryNs['init']>[0] {
       /^(?:CollectorTransportError: )?Umami collector beacon transport rejected\b/,
     ],
     beforeSend(event) {
+      // DeckGLMap sends this only after confirming the map froze. Its error comes
+      // from deck/maplibre frames, which the vendor-stack rules below drop (#9653).
+      if (event.tags?.kind === 'deck_loop_stopped') {
+        isolateNonProductionSentryEvent(event, environment);
+        return scrubSentryCredentials(event);
+      }
       const msg = event.exception?.values?.[0]?.value ?? '';
       if (msg.length <= 3 && /^[a-zA-Z_$]+$/.test(msg)) return null;
       // WebKit's wording for a failed fetch, relocated verbatim from

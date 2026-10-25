@@ -183,6 +183,8 @@ import { fetchWebcamImage } from '@/services/webcams';
 import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
 import { summarizeRenderTiming, formatRenderTiming } from '@/components/map/render-timing';
 import { DeferredHeavyCommit } from '@/components/map/deferred-layer-commit';
+import { createDeckLoopRecovery } from '@/components/map/deck-loop-recovery';
+import { enqueueSentryCall } from '@/bootstrap/sentry-defer';
 import { ZoomHintGuard } from '@/components/map/zoom-hint-guard';
 import { NOTAM_AIRSPACE_COLORS, notamAirspaceTooltip } from '@/components/map/notam-airspace-style';
 import type { NotamAirspaceRestriction } from '@/services/notam-airspace';
@@ -593,6 +595,14 @@ function installDeckInterleavedRaceFilter(): void {
   }, { capture: true });
 }
 
+/** Every stop is a real map freeze, and the console warning alone never reached us (#9653). */
+function reportDeckLoopStop(error: Error, recovery: 'restart' | 'svg-fallback'): void {
+  console.warn(`[DeckGLMap] deck.gl render loop stopped (${recovery}):`, error.message);
+  enqueueSentryCall((Sentry) => {
+    Sentry.captureException?.(error, { tags: { kind: 'deck_loop_stopped', surface: 'map', component: 'deckgl-loop', recovery } });
+  });
+}
+
 export class DeckGLMap {
   private static readonly MAX_CLUSTER_LEAVES = 200;
 
@@ -841,6 +851,14 @@ export class DeckGLMap {
     schedule: (fn) => scheduleYield(fn),
     isAlive: () => !this.renderPaused && !this.webglLost && !!this.maplibreMap,
     onCommit: () => this.updateLayers(true),
+  });
+  private readonly deckLoopRecovery = createDeckLoopRecovery({
+    hasPendingFrame: () => this.deckFrameProvider.hasPendingFrame(),
+    isAlive: () => !this.destroyed && !this.webglLost && !!this.maplibreMap && !!this.deckOverlay,
+    restart: (error) => this.restartDeck(error),
+    giveUp: (error) => { reportDeckLoopStop(error, 'svg-fallback'); this.onFatalError?.(error); },
+    maxRestarts: 3,
+    windowMs: 60_000,
   });
   private destroyed = false;
   private usedFallbackStyle = false;
@@ -1339,29 +1357,7 @@ export class DeckGLMap {
 
     installDeckInterleavedRaceFilter();
 
-    const overlayProps = {
-      interleaved: true,
-      // Forwarded by Deck.setProps to luma.gl's AnimationLoop.setProps.
-      animationFrameProvider: this.deckFrameProvider,
-      layers: this.buildLayers(true),
-      getTooltip: (info: PickingInfo) => this.getTooltip(info),
-      onClick: (info: PickingInfo) => this.handleClick(info),
-      pickingRadius: 10,
-      useDevicePixels: window.devicePixelRatio > 2 ? 2 : true,
-      onError: (error: Error) => {
-        console.warn('[DeckGLMap] Render error (non-fatal):', error.message);
-        if (error.message.includes('apt-groups-layer')) {
-          this.aptGroupsLayerFailed = true;
-        }
-        if (error.message.includes('satellite-imagery-layer')) {
-          this.satelliteImageryLayerFailed = true;
-          console.warn('[DeckGLMap] Satellite imagery layer failed (likely Intel GPU driver incompatibility) — rebuilding layer stack without it');
-          this.updateLayers();
-        }
-      },
-    };
-    this.deckOverlay = new MapLibreOverlay(overlayProps);
-
+    this.deckOverlay = this.createDeckOverlay();
     this.maplibreMap.addControl(this.deckOverlay as unknown as maplibregl.IControl);
     const wakeDeckFrames = () => this.deckFrameProvider.wake();
     for (const event of DECK_FRAME_WAKE_EVENTS) this.maplibreMap.on(event, wakeDeckFrames);
@@ -1425,6 +1421,43 @@ export class DeckGLMap {
       this.state.zoom = this.maplibreMap?.getZoom() ?? this.state.zoom;
       this.onStateChange?.(this.getState());
     });
+  }
+
+  private createDeckOverlay(): MapLibreOverlay {
+    const overlayProps = {
+      interleaved: true,
+      // Forwarded by Deck.setProps to luma.gl's AnimationLoop.setProps.
+      animationFrameProvider: this.deckFrameProvider,
+      layers: this.buildLayers(true),
+      getTooltip: (info: PickingInfo) => this.getTooltip(info),
+      onClick: (info: PickingInfo) => this.handleClick(info),
+      pickingRadius: 10,
+      useDevicePixels: window.devicePixelRatio > 2 ? 2 : true,
+      onError: (error: Error) => {
+        console.warn('[DeckGLMap] Render error (non-fatal):', error.message);
+        if (error.message.includes('apt-groups-layer')) {
+          this.aptGroupsLayerFailed = true;
+        }
+        if (error.message.includes('satellite-imagery-layer')) {
+          this.satelliteImageryLayerFailed = true;
+          console.warn('[DeckGLMap] Satellite imagery layer failed (likely Intel GPU driver incompatibility) — rebuilding layer stack without it');
+          this.updateLayers();
+        }
+        this.deckLoopRecovery(error);
+      },
+    };
+    return new MapLibreOverlay(overlayProps);
+  }
+
+  private restartDeck(error: Error): void {
+    if (!this.maplibreMap) return;
+    reportDeckLoopStop(error, 'restart');
+    // A finalized deck.gl layer cannot join a new Deck.
+    this.layerCache.clear();
+    this.deckOverlay?.finalize();
+    this.deckOverlay = this.createDeckOverlay();
+    this.maplibreMap.addControl(this.deckOverlay as unknown as maplibregl.IControl);
+    this.render();
   }
 
   public setIsResizing(value: boolean): void {

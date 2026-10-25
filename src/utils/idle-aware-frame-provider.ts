@@ -26,6 +26,8 @@ export interface IdleAwareFrameProviderOptions {
 export interface IdleAwareFrameProvider {
   requestAnimationFrame(cb: (time: number) => void): number;
   cancelAnimationFrame(handle: number): void;
+  /** True while a requested callback has not run yet. A running loop always has one. */
+  hasPendingFrame(): boolean;
   wake(): void;
   dispose(): void;
 }
@@ -74,6 +76,9 @@ export function createIdleAwareFrameProvider(options: IdleAwareFrameProviderOpti
       pending.delete(handle);
       if (entry.kind === 'raf') caf(entry.id);
       else clearTimer(entry.id);
+    },
+    hasPendingFrame() {
+      return pending.size > 0;
     },
     wake() {
       if (disposed) return;

@@ -2897,3 +2897,28 @@ describe('document-URL-only explicit Error (WORLDMONITOR-134)', () => {
       'an inline HTML script now throws — a document-attributed Error may be ours; re-derive the WORLDMONITOR-134 gate');
   });
 });
+
+// #9653: DeckGLMap reports a deck.gl render-loop stop only after confirming the
+// map froze. Those errors come from deck/maplibre frames, which the vendor-stack
+// rules drop, so the report claims itself with a kind tag.
+describe('confirmed deck.gl loop-stop reports', () => {
+  const shapes = [
+    ['TypeError with only map-chunk frames', makeEvent("Cannot read properties of undefined (reading 'getViewport')", 'TypeError', [
+      { filename: '/assets/deck-stack-x1y2z3.js', lineno: 1, function: 'Deck._onRenderFrame' },
+      { filename: '/assets/maplibre-AbC123.js', lineno: 2, function: 'Map._render' },
+    ])],
+    ['interleaved null-id race', makeEvent("Cannot read properties of null (reading 'id')", 'TypeError', [
+      { filename: '/assets/deck-stack-x1y2z3.js', lineno: 1, function: 'drawLayer' },
+    ])],
+  ];
+  for (const [label, event] of shapes) {
+    it(`drops an unclaimed ${label}`, () => {
+      assert.equal(beforeSend(structuredClone(event)), null);
+    });
+    it(`delivers a claimed ${label}`, () => {
+      const claimed = { ...structuredClone(event), tags: { kind: 'deck_loop_stopped', component: 'deckgl-loop' } };
+      assert.notEqual(beforeSend(claimed), null);
+    });
+  }
+});
+
