@@ -3441,7 +3441,12 @@
       "uae_ecsr": "สหรัฐอาหรับเอมิเรตส์/ECSR",
       "venezuela_crisis": "วิกฤตเวเนซุเอลา",
       "yemen_houthis": "เยเมน/ฮูตี"
-    }
+    },
+    "upcomingForecast": "พยากรณ์ล่วงหน้า",
+    "currentForecast": "พยากรณ์ที่มีผลในขณะนี้",
+    "expiredForecast": "พยากรณ์ที่หมดอายุ",
+    "validFrom": "มีผลตั้งแต่",
+    "validUntil": "มีผลถึง"
   },
   "signals": {
     "context": {

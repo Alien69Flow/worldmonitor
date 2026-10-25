@@ -3501,7 +3501,12 @@
       "position": "Poloha",
       "ground": "Na zemi",
       "airborne": "Ve vzduchu"
-    }
+    },
+    "upcomingForecast": "Nadcházející předpověď",
+    "currentForecast": "Aktuální předpověď",
+    "expiredForecast": "Neplatná předpověď",
+    "validFrom": "Platí od",
+    "validUntil": "Platí do"
   },
   "signals": {
     "context": {

@@ -3461,7 +3461,12 @@
       "uae_ecsr": "ΗΑΕ/ECSR",
       "venezuela_crisis": "Κρίση Βενεζουέλας",
       "yemen_houthis": "Υεμένη/Χούθι"
-    }
+    },
+    "upcomingForecast": "Επερχόμενη πρόγνωση",
+    "currentForecast": "Τρέχουσα πρόγνωση",
+    "expiredForecast": "Ληγμένη πρόγνωση",
+    "validFrom": "Ισχύει από",
+    "validUntil": "Ισχύει έως"
   },
   "signals": {
     "context": {

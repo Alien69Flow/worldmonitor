@@ -3441,7 +3441,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Khủng hoảng Venezuela",
       "yemen_houthis": "Yemen/Houthis"
-    }
+    },
+    "upcomingForecast": "Dự báo sắp tới",
+    "currentForecast": "Dự báo hiện hành",
+    "expiredForecast": "Dự báo hết hạn",
+    "validFrom": "Có hiệu lực từ",
+    "validUntil": "Có hiệu lực đến"
   },
   "signals": {
     "context": {

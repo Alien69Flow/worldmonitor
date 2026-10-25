@@ -3570,7 +3570,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Venezuela Crisis",
       "yemen_houthis": "Yemen/Houthis"
-    }
+    },
+    "upcomingForecast": "Майбутній прогноз",
+    "currentForecast": "Чинний прогноз",
+    "expiredForecast": "Прострочений прогноз",
+    "validFrom": "Чинний з",
+    "validUntil": "Чинний до"
   },
   "signals": {
     "context": {

@@ -3530,7 +3530,12 @@
       "uae_ecsr": "यूएई/ECSR",
       "venezuela_crisis": "वेनेजुएला संकट",
       "yemen_houthis": "यमन/हौथी"
-    }
+    },
+    "upcomingForecast": "आगामी पूर्वानुमान",
+    "currentForecast": "वर्तमान पूर्वानुमान",
+    "expiredForecast": "समाप्त पूर्वानुमान",
+    "validFrom": "इस समय से मान्य",
+    "validUntil": "इस समय तक मान्य"
   },
   "signals": {
     "context": {

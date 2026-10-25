@@ -3561,7 +3561,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "Venezuelanska Kriza",
       "yemen_houthis": "Jemen/Houthiji"
-    }
+    },
+    "upcomingForecast": "Nadolazeća prognoza",
+    "currentForecast": "Trenutačna prognoza",
+    "expiredForecast": "Istekla prognoza",
+    "validFrom": "Vrijedi od",
+    "validUntil": "Vrijedi do"
   },
   "signals": {
     "context": {

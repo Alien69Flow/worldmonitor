@@ -3530,7 +3530,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "venezuelai válság",
       "yemen_houthis": "Jemen/Houthik"
-    }
+    },
+    "upcomingForecast": "Közelgő előrejelzés",
+    "currentForecast": "Jelenlegi előrejelzés",
+    "expiredForecast": "Lejárt előrejelzés",
+    "validFrom": "Érvényes ettől",
+    "validUntil": "Érvényes eddig"
   },
   "signals": {
     "context": {

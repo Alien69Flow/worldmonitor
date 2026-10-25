@@ -3077,7 +3077,12 @@
       "position": "Position",
       "ground": "På marken",
       "airborne": "I luften"
-    }
+    },
+    "upcomingForecast": "Kommande prognos",
+    "currentForecast": "Aktuell prognos",
+    "expiredForecast": "Utgången prognos",
+    "validFrom": "Giltig från",
+    "validUntil": "Giltig till"
   },
   "signals": {
     "context": {

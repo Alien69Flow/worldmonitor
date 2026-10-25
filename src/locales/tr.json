@@ -3461,7 +3461,12 @@
       "uae_ecsr": "BAE/ECSR",
       "venezuela_crisis": "Venezuela Krizi",
       "yemen_houthis": "Yemen/Husiler"
-    }
+    },
+    "upcomingForecast": "Yaklaşan tahmin",
+    "currentForecast": "Geçerli tahmin",
+    "expiredForecast": "Süresi dolmuş tahmin",
+    "validFrom": "Geçerlilik başlangıcı",
+    "validUntil": "Geçerlilik sonu"
   },
   "signals": {
     "context": {

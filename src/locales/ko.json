@@ -3441,7 +3441,12 @@
       "uae_ecsr": "UAE/ECSR",
       "venezuela_crisis": "베네수엘라 위기",
       "yemen_houthis": "예멘/후티"
-    }
+    },
+    "upcomingForecast": "예정된 예보",
+    "currentForecast": "현재 유효한 예보",
+    "expiredForecast": "만료된 예보",
+    "validFrom": "유효 시작",
+    "validUntil": "유효 종료"
   },
   "signals": {
     "context": {

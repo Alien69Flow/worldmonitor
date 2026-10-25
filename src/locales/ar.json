@@ -3541,7 +3541,12 @@
       "position": "الموقع",
       "ground": "على الأرض",
       "airborne": "في الجو"
-    }
+    },
+    "upcomingForecast": "توقعات قادمة",
+    "currentForecast": "توقعات سارية",
+    "expiredForecast": "توقعات منتهية",
+    "validFrom": "صالحة من",
+    "validUntil": "صالحة حتى"
   },
   "signals": {
     "context": {

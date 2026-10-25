@@ -3077,7 +3077,12 @@
       "position": "Positie",
       "ground": "Op de grond",
       "airborne": "In de lucht"
-    }
+    },
+    "upcomingForecast": "Komende verwachting",
+    "currentForecast": "Actuele verwachting",
+    "expiredForecast": "Verlopen verwachting",
+    "validFrom": "Geldig vanaf",
+    "validUntil": "Geldig tot"
   },
   "signals": {
     "context": {

@@ -3441,7 +3441,12 @@
       "uae_ecsr": "阿联酋/ECSR",
       "venezuela_crisis": "委内瑞拉危机",
       "yemen_houthis": "也门/胡塞武装"
-    }
+    },
+    "upcomingForecast": "即将生效的预报",
+    "currentForecast": "当前有效预报",
+    "expiredForecast": "已过期预报",
+    "validFrom": "生效时间",
+    "validUntil": "失效时间"
   },
   "signals": {
     "context": {

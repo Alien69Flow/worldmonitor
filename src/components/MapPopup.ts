@@ -1456,6 +1456,17 @@ export class MapPopup {
   private renderWeatherPopup(alert: WeatherAlert): string {
     const severityClass = escapeHtml(alert.severity.toLowerCase());
     const expiresIn = this.getTimeUntil(alert.expires);
+    const onset = new Date(alert.onset).getTime();
+    const expiry = new Date(alert.expires).getTime();
+    const marine = alert.productKind === 'sea-area-bulletin' || alert.productKind === 'coastal-bulletin';
+    let validity = '';
+    if (marine && Number.isFinite(onset) && Number.isFinite(expiry) && expiry > onset) {
+      const now = Date.now();
+      const state = now < onset ? 'upcomingForecast' : now < expiry ? 'currentForecast' : 'expiredForecast';
+      const start = new Date(onset).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+      const end = new Date(expiry).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+      validity = `<p class="popup-description"><strong>${t(`popups.${state}`)}</strong><br>${t('popups.validFrom')}: ${start}<br>${t('popups.validUntil')}: ${end}</p>`;
+    }
 
     return `
       <div class="popup-header weather ${severityClass}">
@@ -1465,6 +1476,7 @@ export class MapPopup {
       </div>
       <div class="popup-body">
         <p class="popup-headline">${escapeHtml(alert.headline)}</p>
+        ${validity}
         <div class="popup-stats">
           <div class="popup-stat">
             <span class="stat-label">${t('popups.area')}</span>

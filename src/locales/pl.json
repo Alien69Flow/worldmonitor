@@ -3501,7 +3501,12 @@
       "position": "Pozycja",
       "ground": "Na ziemi",
       "airborne": "W powietrzu"
-    }
+    },
+    "upcomingForecast": "Nadchodząca prognoza",
+    "currentForecast": "Aktualna prognoza",
+    "expiredForecast": "Wygasła prognoza",
+    "validFrom": "Ważna od",
+    "validUntil": "Ważna do"
   },
   "signals": {
     "context": {
