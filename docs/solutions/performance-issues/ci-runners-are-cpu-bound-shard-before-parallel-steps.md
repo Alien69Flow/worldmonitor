@@ -170,7 +170,28 @@ same blob at the same moment took 12-62s on PR #9626. The job now sets
 - **Before adding workers or a background service, sample CPU during the
   step.** If the runner is above about 80% busy, add a shard instead.
 - **Rebalance smoke shards from measured durations** when a spec grows. The
-  list reporter's per-test seconds are the input.
+  list reporter's per-test seconds are the input. By October 2026 the four
+  shards measured 218/209/287/277 test-seconds (per-spec medians of three main
+  runs). PR #9658 replaced the fixed 8s settle waits in
+  `dashboard-news-request-budget` with the `wmInitialDataReady` flag plus a
+  1.5s quiet window. Single runs misled: a spec's time moved up to 50%
+  between runs (`country-brief` 151-205s) because each shard gets its own
+  runner, so one run's totals mostly show which runners were fast. The final
+  split uses each spec's median over six runs (three on main, three on the
+  PR): 237/238/238/240 of 953 test-seconds.
+- **Removing sleeps does not free the seconds they held on CI.** Locally the
+  flag set 0.3-0.6s after the first digest. On a runner each 8s wait saved only
+  1-5s; the flag time there was not logged. The spec's other tests got slower (3.9s to
+  6.5s, 3.6s to 7.6s) because the sleeps had left CPU idle for the second
+  worker. Over six runs the spec's median did not move (162s before, 157-172s
+  after) and the smoke total stayed at about 953 test-seconds. On a
+  CPU-bound runner a sleep overlaps the other worker's work, so removing it
+  saves local time but not CI time. Only balance changes the CI wall here.
+- **Wait on a readiness signal, not a fixed sleep, to prove a negative.**
+  Before shortening a "no second request" wait, find what would cause the
+  second request and whether a flag already marks its end. Then remove the
+  guard (here `shouldHydrateNews` returning true) and confirm the shortened
+  test still fails.
 - **Benchmark changes on a throwaway branch.** Use a push trigger on that
   branch and force `emit_all_true` in `changes`. Suites that inspect
   `.github/workflows` and the health-probe cutover gate go red because of the
