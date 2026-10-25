@@ -4371,7 +4371,7 @@ export function buildChokepointHubRows(chokepoints, livePulse) {
 
 function renderChokepointsIndex({ chokepoints, chokepointHubRows, livePulse, baseUrl, lastmod, snapshotPath }) {
   const path = '/chokepoints/';
-  const description = `Track current disruption scores, status, AIS congestion, and update times for the ${chokepoints.length} maritime chokepoints in the World Monitor public status snapshot.`;
+  const description = `Live status of the ${chokepoints.length} maritime chokepoints, from Hormuz, Suez and Bab el-Mandeb to Malacca and Panama: disruption scores, AIS congestion and last-update times.`;
   const updatedAt = chokepointHubRows
     .map((row) => row.asOf)
     .sort((left, right) => Date.parse(left) - Date.parse(right))
@@ -4474,7 +4474,7 @@ ${chokepointHubRows.map((row) => {
   return pageDocument({
     baseUrl,
     path,
-    title: 'Maritime Chokepoints | World Monitor',
+    title: 'Maritime Chokepoints: Live Shipping Lane Status | World Monitor',
     description,
     lastmod,
     jsonLd: [
@@ -5199,7 +5199,7 @@ ${renderRelatedReading(relatedReading, escapeHtml)}
 // claim about the corpus rather than as prose.
 function renderToolsIndex({ baseUrl, lastmod, crisisCount, chokepointCount }) {
   const path = '/tools/';
-  const description = 'Focused World Monitor tools for current natural hazards, country-level airspace disruption, and geographic signal convergence, backed by maintained first-party data contracts.';
+  const description = 'Check hazards, airspace, shipping, outages, markets and economic indicators with live World Monitor tools, named sources, update times and coverage limits.';
   const body = `      <p class="eyebrow">Live intelligence tools</p>
       <h1>Check a current operational signal</h1>
       <p class="lede">${escapeHtml(description)}</p>
