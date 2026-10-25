@@ -16,7 +16,9 @@ import {
   buildClosures,
   classifyNotam,
   compactFeature,
+  coveredLocations,
   mergeClosureSources,
+  noteLocations,
   parseQCoordinates,
   pruneExpired,
 } from '../scripts/lib/nms-notam.mjs';
@@ -202,6 +204,18 @@ describe('compactFeature', () => {
     const f = feature('tfr_fdc', { coordinates: undefined }, { type: 'GeometryCollection', geometries: [] });
     assert.equal(compactFeature(f, NOW), null);
   });
+
+  // The map cannot draw it, but it still closes the airports in its FIR.
+  it('keeps an airspace closure with no position, for coverage but not for the map', () => {
+    const f = feature('tfr_fdc', { id: 'fir-clsd', coordinates: undefined, selectionCode: 'QAFLC', icaoLocation: 'OIIX', location: 'OIIX', affectedFir: 'OIIX', text: 'TEHRAN FIR CLSD' },
+      { type: 'GeometryCollection', geometries: [] });
+    const rec = compactFeature(f, NOW);
+    assert.equal(rec?.k, 'closure');
+    assert.equal(rec.g, undefined);
+    const items = { [rec.id]: rec };
+    assert.deepEqual(buildAirspace(items, NOW), [], 'nothing to draw');
+    assert.deepEqual(coveredLocations({ OIIE: 'OIIX', OEJN: 'OEJD' }, items, NOW), ['OEJN']);
+  });
 });
 
 describe('parseQCoordinates', () => {
@@ -288,8 +302,59 @@ function fakeClient({ classification = {}, delta = [] } = {}) {
   };
 }
 
+describe('noteLocations / coveredLocations', () => {
+  it('records every aerodrome the feed carries a NOTAM for, relevant or not, with its FIR', () => {
+    const locs = { OIIE: 'OIIX' };
+    const routine = feature('airport_partial', { icaoLocation: 'oejn', affectedFir: 'oejd', text: 'TWY B CLSD' });
+    const noFir = feature('airport_partial', { icaoLocation: 'OEMA', affectedFir: undefined });
+    const fir = feature('tfr_fdc', { icaoLocation: 'ZNY', location: 'ZNY' });
+    noteLocations(locs, [routine, noFir, fir, { properties: {} }, null]);
+    assert.deepEqual(locs, { OIIE: 'OIIX', OEJN: 'OEJD', OEMA: '' }, 'four-letter ICAO locations only');
+  });
+
+  // A country-wide airspace closure is a NOTAM on the FIR, not on each
+  // airport. Its airports have no closure NOTAM of their own, and must not
+  // read as open while the airspace above them is closed.
+  it('withholds coverage from airports in, or at, an airspace closed now', () => {
+    const firClosure = feature('danger_radius', { id: 'fir-clsd', selectionCode: 'QAFLC', icaoLocation: 'OIIX', location: 'OIIX', affectedFir: 'OIIX', text: 'TEHRAN FIR CLSD' });
+    // Production on 2026-10-25: "MCTR CLSD" at EPPR, inside FIR EPWW.
+    const ctrClosure = feature('danger_radius', { id: 'ctr-clsd', selectionCode: 'QACLC', icaoLocation: 'EPPR', location: 'EPPR', affectedFir: 'EPWW', text: 'MCTR CLSD.' });
+    const items = {};
+    applyFeatures(items, [firClosure, ctrClosure], NOW);
+    assert.deepEqual(Object.values(items).map((r) => r.k), ['closure', 'closure'], 'fixtures are airspace closures');
+    const locs = { OIIE: 'OIIX', OISS: 'OIIX', OIIX: 'OIIX', OEJN: 'OEJD', OEMA: '', EPPR: 'EPWW', EPKK: 'EPWW' };
+    assert.deepEqual(coveredLocations(locs, items, NOW), ['EPKK', 'OEJN', 'OEMA'], 'a control-zone closure leaves the rest of its FIR open');
+    assert.deepEqual(coveredLocations(locs, items, Date.parse('2030-01-01T00:00:00Z')), Object.keys(locs).sort(),
+      'an expired closure no longer withholds coverage');
+    assert.deepEqual(coveredLocations(undefined, items, NOW), []);
+  });
+});
+
 describe('syncState', () => {
   const quiet = () => {};
+
+  it('a full load records the feed\'s locations; a delta adds to them', async () => {
+    const routine = feature('airport_partial', { icaoLocation: 'OEJN', selectionCode: 'QMXLC', text: 'TWY B CLSD' });
+    const full = await syncState({
+      state: null, lastFullLoadAt: null, markFullLoad: async () => {},
+      client: fakeClient({ classification: { INTERNATIONAL: [routine] } }), nowMs: NOW, log: quiet,
+    });
+    assert.deepEqual(full.state.locs, { OEJN: 'KZLA' });
+    assert.equal(Object.keys(full.state.items).length, 0, 'the routine NOTAM itself is not tracked');
+
+    const later = feature('airport_partial', { icaoLocation: 'OIIE', selectionCode: 'QMRLC', text: 'RWY 11L CLSD' });
+    const delta = await syncState({
+      state: full.state, lastFullLoadAt: NOW, markFullLoad: async () => assert.fail('no bulk load'),
+      client: fakeClient({ delta: [later] }), nowMs: NOW + 5 * 60_000, log: quiet,
+    });
+    assert.deepEqual(delta.state.locs, { OEJN: 'KZLA', OIIE: 'KZLA' });
+
+    const legacy = await syncState({
+      state: { cursor: NOW, fullLoadAt: NOW, items: {} }, lastFullLoadAt: NOW, markFullLoad: async () => {},
+      client: fakeClient({ delta: [later] }), nowMs: NOW + 5 * 60_000, log: quiet,
+    });
+    assert.deepEqual(legacy.state.locs, { OIIE: 'KZLA' }, 'state written before coverage existed starts from the delta');
+  });
 
   it('cold start: claims the bulk allowance before pulling all four classifications', async () => {
     const client = fakeClient({ classification: { INTERNATIONAL: [FIXTURE.danger_radius], FDC: [FIXTURE.tfr_fdc] } });
@@ -493,6 +558,14 @@ describe('mergeClosureSources', () => {
     assert.equal(merged.reasons.OEMA, 'RESTRICTED (NMS)');
     assert.equal(merged.sourceByIcao.OEMA, 'FAA NMS NOTAM');
   });
+
+  it('keeps the coverage of watched airports only, from whichever source reports it', () => {
+    const nms = { closedIcaos: [], restrictedIcaos: [], reasons: {}, coveredIcaos: ['OIIE', 'OEJN', 'KZZZ'] };
+    const icao = { closedIcaos: ['OEMA'], restrictedIcaos: [], reasons: {} };
+    const merged = mergeClosureSources([{ label: 'FAA NMS NOTAM', snapshot: nms }, { label: 'ICAO NOTAM', snapshot: icao }], ['OEJN', 'OEMA', 'OIIE']);
+    assert.deepEqual(merged.coveredIcaos, ['OEJN', 'OIIE']);
+    assert.deepEqual(mergeClosureSources([{ label: 'ICAO NOTAM', snapshot: icao }], ['OEMA']).coveredIcaos, []);
+  });
 });
 
 describe('buildPayload', () => {
@@ -504,6 +577,8 @@ describe('buildPayload', () => {
     assert.equal(p.notams.length, 3);
     assert.deepEqual(p.closures.restrictedIcaos, ['KLAX']);
     assert.equal(p.closures.generatedAt, NOW);
+    assert.deepEqual(p.closures.coveredIcaos, []);
+    assert.deepEqual(buildPayload({ cursor: NOW, fullLoadAt: NOW, items, locs: { OIIE: 'OIIX' } }, NOW).closures.coveredIcaos, ['OIIE']);
   });
 });
 

@@ -3036,7 +3036,9 @@
         "africa": "แอฟริกา"
       },
       "scheduled": "ตามกำหนด",
-      "estimated": "คาดการณ์"
+      "estimated": "คาดการณ์",
+      "normalOperations": "การบินปกติ",
+      "open": "เปิด"
     },
     "aircraft": {
       "altitude": "ระดับความสูง",

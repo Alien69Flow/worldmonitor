@@ -2637,6 +2637,8 @@
   "popups.flight.estimated": "Est",
   "popups.flight.groundDelay": "GROUND DELAY PROGRAM",
   "popups.flight.groundStop": "GROUND STOP",
+  "popups.flight.normalOperations": "NORMAL OPERATIONS",
+  "popups.flight.open": "OPEN",
   "popups.flight.regions.africa": "Africa",
   "popups.flight.regions.americas": "Americas",
   "popups.flight.regions.apac": "Asia-Pacific",

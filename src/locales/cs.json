@@ -3096,7 +3096,9 @@
         "africa": "Afrika"
       },
       "scheduled": "Plán.",
-      "estimated": "Odhad"
+      "estimated": "Odhad",
+      "normalOperations": "NORMÁLNÍ PROVOZ",
+      "open": "OTEVŘENO"
     },
     "cyberThreat": {
       "title": "KYBERNETICKÁ HROZBA"

@@ -3036,7 +3036,9 @@
         "africa": "非洲"
       },
       "scheduled": "計劃",
-      "estimated": "預計"
+      "estimated": "預計",
+      "normalOperations": "正常運營",
+      "open": "開放"
     },
     "aircraft": {
       "altitude": "高度",

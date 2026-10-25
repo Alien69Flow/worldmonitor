@@ -1034,6 +1034,16 @@ function buildUnknownOpsAlert(airport) {
   };
 }
 
+const NOTAM_OPEN_REASON = 'Open';
+
+// The NOTAM feed carries this airport's NOTAMs and none closes or restricts it.
+function buildNotamOpenAlert(airport) {
+  return {
+    ...buildNotamAlert(airport, NOTAM_OPEN_REASON, 'normal', 'general'),
+    id: `notam-open-${airport.iata}`,
+  };
+}
+
 function buildNotamAlert(airport, reason, severity = 'severe', delayType = 'closure') {
   const trimmed = reason.length > 200 ? reason.slice(0, 200) + '…' : reason;
   return {
@@ -1180,6 +1190,7 @@ export function buildDelaysBootstrapPayload({
   const closedIcaos = Array.isArray(notamPayload?.closedIcaos) ? notamPayload.closedIcaos : [];
   const restrictedIcaos = Array.isArray(notamPayload?.restrictedIcaos) ? notamPayload.restrictedIcaos : [];
   const reasons = (notamPayload?.reasons && typeof notamPayload.reasons === 'object') ? notamPayload.reasons : {};
+  const notamCoveredIcaos = new Set(Array.isArray(notamPayload?.coveredIcaos) ? notamPayload.coveredIcaos : []);
 
   const allAlerts = [...faaAlerts, ...intlAlerts];
   const existingIatas = new Set(allAlerts.map(a => a.iata));
@@ -1208,6 +1219,8 @@ export function buildDelaysBootstrapPayload({
         airport,
         isFaaCovered ? 'FLIGHT_DELAY_SOURCE_FAA' : 'FLIGHT_DELAY_SOURCE_AVIATIONSTACK',
       ));
+    } else if (notamCoveredIcaos.has(airport.icao)) {
+      allAlerts.push(buildNotamOpenAlert(airport));
     } else {
       allAlerts.push(buildUnknownOpsAlert(airport));
     }
@@ -1376,7 +1389,7 @@ async function runNotamSideCar() {
     try {
       const metaWritten = await writeExtraKeyWithMeta(
         NOTAM_KEY,
-        { closedIcaos: notam.closedIcaos, restrictedIcaos: notam.restrictedIcaos, reasons: notam.reasons },
+        { closedIcaos: notam.closedIcaos, restrictedIcaos: notam.restrictedIcaos, reasons: notam.reasons, coveredIcaos: notam.coveredIcaos },
         NOTAM_TTL,
         notam.closedIcaos.length + notam.restrictedIcaos.length,
         NOTAM_META_KEY,

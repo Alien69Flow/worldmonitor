@@ -2671,7 +2671,9 @@
         "africa": "Afrika"
       },
       "scheduled": "Ingepland",
-      "estimated": "Geschat"
+      "estimated": "Geschat",
+      "normalOperations": "NORMALE OPERATIES",
+      "open": "OPEN"
     },
     "cyberThreat": {
       "title": "CYBERDREIGING"

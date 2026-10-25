@@ -29,7 +29,7 @@ import { gunzipSync } from 'node:zlib';
 import { CHROME_UA, loadEnvFile, markPreservableFetchFailure, readCanonicalValue, runSeed, withRetry } from './_seed-utils.mjs';
 import { encodeGzipPayload } from './_seed-payload-codec.mjs';
 import { getOptionalUpstashCreds, upstashCommand } from './_upstash-rest.mjs';
-import { NMS_ACTIVATION_KEY, NMS_CLOSURES_KEY, applyFeatures, buildAirspace, buildClosures, pruneExpired } from './lib/nms-notam.mjs';
+import { NMS_ACTIVATION_KEY, NMS_CLOSURES_KEY, applyFeatures, buildAirspace, buildClosures, coveredLocations, noteLocations, pruneExpired } from './lib/nms-notam.mjs';
 
 loadEnvFile(import.meta.url);
 
@@ -190,14 +190,16 @@ async function syncStateOnce({ state, lastFullLoadAt, markFullLoad, client, nowM
     await client.ready?.();
     await markFullLoad(nowMs);
     const items = {};
+    const locs = {};
     const stats = { mode: 'full' };
     for (const cls of CLASSIFICATIONS) {
       const features = await client.classification(cls);
       stats[cls] = { features: features.length, ...applyFeatures(items, features, nowMs) };
+      noteLocations(locs, features);
     }
     // The bulk files are snapshots cut a few minutes before download; the next
     // delta re-reads from before the run started to cover the gap.
-    return { state: { cursor: nowMs - DELTA_OVERLAP_MS, fullLoadAt: nowMs, items }, mode: 'full', stats };
+    return { state: { cursor: nowMs - DELTA_OVERLAP_MS, fullLoadAt: nowMs, items, locs }, mode: 'full', stats };
   }
 
   const usedMin = Math.round((nowMs - lastFullLoadAt) / 60_000);
@@ -220,8 +222,12 @@ async function syncStateOnce({ state, lastFullLoadAt, markFullLoad, client, nowM
   const items = { ...state.items };
   const applied = applyFeatures(items, features, nowMs);
   const expired = pruneExpired(items, nowMs);
+  // Locations reset with each bulk load; until then a delta only adds. State
+  // written before coverage existed starts empty and fills from deltas.
+  const locs = { ...state.locs };
+  noteLocations(locs, features);
   return {
-    state: { cursor: nowMs, fullLoadAt: state.fullLoadAt, items },
+    state: { cursor: nowMs, fullLoadAt: state.fullLoadAt, items, locs },
     mode: 'delta',
     stats: { mode: 'delta', since: nmsTime(since), features: features.length, ...applied, expired },
   };
@@ -234,7 +240,7 @@ export function buildPayload(state, nowMs) {
     generatedAt: nowMs,
     source: 'FAA NMS',
     notams,
-    closures: { ...closures, generatedAt: nowMs },
+    closures: { ...closures, coveredIcaos: coveredLocations(state.locs, state.items, nowMs), generatedAt: nowMs },
   };
 }
 

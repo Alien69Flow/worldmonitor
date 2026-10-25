@@ -3096,7 +3096,9 @@
         "africa": "Африка"
       },
       "scheduled": "План.",
-      "estimated": "Пред."
+      "estimated": "Пред.",
+      "normalOperations": "НОРМАЛЬНАЯ РАБОТА",
+      "open": "ОТКРЫТО"
     },
     "aircraft": {
       "altitude": "Высота",

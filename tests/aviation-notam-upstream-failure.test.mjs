@@ -35,6 +35,7 @@ if (process.env.TEST_NMS_MODE) {
       closedIcaos: ['OEJN', 'KZZZ'],
       restrictedIcaos: ['OEMA', 'OEDF'],
       reasons: { OEJN: 'AD CLSD (NMS)', KZZZ: 'AD AP CLSD', OEMA: 'RESTRICTED (NMS)', OEDF: 'AD AP CLSD TO NON SKED GA' },
+      coveredIcaos: ['KZZZ', 'OEJN', 'OIIE'],
       generatedAt,
     },
   }));
@@ -197,7 +198,7 @@ test('ICAO success with no NOTAMs is a valid empty observation', () => {
   const { state, stdout, stderr } = runAviation({ TEST_ICAO_MODE: 'okEmpty' });
   assert.equal(state.icaoCalls, 1, stdout + stderr);
   assert.match(stdout, /\[NOTAM\] wrote \d+ closures/);
-  assert.deepEqual(state.notam, { closedIcaos: [], restrictedIcaos: [], reasons: {} });
+  assert.deepEqual(state.notam, { closedIcaos: [], restrictedIcaos: [], reasons: {}, coveredIcaos: [] });
   assert.equal(state.meta.recordCount, 0);
   assert.ok(state.meta.fetchedAt > state.initialFetchedAt);
 });
@@ -211,6 +212,7 @@ test('ICAO outage with fresh NMS closures publishes the NMS observation', () => 
   assert.deepEqual(state.notam.closedIcaos, ['OEJN'], 'KZZZ is not a monitored airport');
   assert.deepEqual(state.notam.restrictedIcaos.sort(), ['OEDF', 'OEMA']);
   assert.equal(state.notam.reasons.OEJN, 'AD CLSD (NMS)');
+  assert.deepEqual(state.notam.coveredIcaos, ['OEJN', 'OIIE'], 'coverage is limited to monitored airports');
   assert.ok(state.meta.fetchedAt > state.initialFetchedAt, 'NMS is a current observation');
   const notice = state.pushes.find((p) => p.eventType === 'notam_closure');
   assert.equal(notice?.payload.source, 'FAA NMS NOTAM');
@@ -264,7 +266,7 @@ test('an unreadable activation marker counts as activated: an empty ICAO answer 
 test('before NMS activation an empty ICAO answer is still a valid observation', () => {
   const { state, stdout, stderr } = runAviation({ TEST_ICAO_MODE: 'okEmpty', TEST_NMS_MODE: 'stale' });
   assert.equal(state.icaoCalls, 1, stdout + stderr);
-  assert.deepEqual(state.notam, { closedIcaos: [], restrictedIcaos: [], reasons: {} });
+  assert.deepEqual(state.notam, { closedIcaos: [], restrictedIcaos: [], reasons: {}, coveredIcaos: [] });
 });
 
 test('stale NMS closures are ignored: an ICAO outage still keeps last-good', () => {

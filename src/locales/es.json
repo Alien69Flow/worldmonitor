@@ -3075,7 +3075,9 @@
         "africa": "África"
       },
       "scheduled": "Prog",
-      "estimated": "Est"
+      "estimated": "Est",
+      "normalOperations": "OPERACIONES NORMALES",
+      "open": "ABIERTO"
     },
     "cyberThreat": {
       "title": "CIBERAMENAZA"

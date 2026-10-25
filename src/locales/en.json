@@ -3130,6 +3130,8 @@
       "departureDelay": "DEPARTURE DELAYS",
       "arrivalDelay": "ARRIVAL DELAYS",
       "delaysReported": "DELAYS REPORTED",
+      "normalOperations": "NORMAL OPERATIONS",
+      "open": "OPEN",
       "closure": "AIRPORT CLOSURE",
       "delays": "DELAYS",
       "avgDelay": "AVG DELAY",

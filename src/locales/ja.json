@@ -3036,7 +3036,9 @@
         "africa": "アフリカ"
       },
       "scheduled": "予定",
-      "estimated": "推定"
+      "estimated": "推定",
+      "normalOperations": "通常運用",
+      "open": "運用中"
     },
     "aircraft": {
       "altitude": "高度",

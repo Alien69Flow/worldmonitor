@@ -3036,7 +3036,9 @@
         "africa": "아프리카"
       },
       "scheduled": "예정",
-      "estimated": "추정"
+      "estimated": "추정",
+      "normalOperations": "정상 운항",
+      "open": "운영 중"
     },
     "aircraft": {
       "altitude": "고도",

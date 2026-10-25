@@ -3036,7 +3036,9 @@
         "africa": "Châu Phi"
       },
       "scheduled": "Lịch",
-      "estimated": "Dự kiến"
+      "estimated": "Dự kiến",
+      "normalOperations": "HOẠT ĐỘNG BÌNH THƯỜNG",
+      "open": "MỞ CỬA"
     },
     "aircraft": {
       "altitude": "Độ cao",

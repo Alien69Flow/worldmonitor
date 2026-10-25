@@ -3056,7 +3056,9 @@
         "africa": "Afrika"
       },
       "scheduled": "Planl.",
-      "estimated": "Tah."
+      "estimated": "Tah.",
+      "normalOperations": "NORMAL İŞLETME",
+      "open": "AÇIK"
     },
     "aircraft": {
       "altitude": "Irtifa",

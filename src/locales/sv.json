@@ -2671,7 +2671,9 @@
         "africa": "Afrika"
       },
       "scheduled": "Planerad",
-      "estimated": "Beräknad"
+      "estimated": "Beräknad",
+      "normalOperations": "NORMAL DRIFT",
+      "open": "ÖPPEN"
     },
     "cyberThreat": {
       "title": "CYBERHOT"

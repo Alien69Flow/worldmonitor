@@ -3165,7 +3165,9 @@
         "apac": "Asia-Pacific",
         "mena": "Middle East",
         "africa": "Africa"
-      }
+      },
+      "normalOperations": "ЗВИЧАЙНІ ОПЕРАЦІЇ",
+      "open": "ВІДКРИТО"
     },
     "aircraft": {
       "altitude": "Altitude",

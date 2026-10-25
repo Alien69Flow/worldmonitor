@@ -180,14 +180,16 @@ export function compactFeature(feature, nowMs) {
   if (cancelledAt !== null && cancelledAt <= nowMs) return null;
   const geo = cls.airspace ? compactGeometry(feature.geometry, notam) : null;
   // An airspace NOTAM with no position can still be an airport closure; drop
-  // only the airspace half.
-  if (cls.airspace && !geo) delete cls.airspace;
+  // only the airspace half. An airspace closure is kept without geometry:
+  // buildAirspace cannot draw it, but coveredLocations needs it to close the
+  // airports in its FIR.
+  if (cls.airspace && !geo && cls.airspace !== 'closure') delete cls.airspace;
   if (!cls.airport && !cls.airspace) return null;
   const location = upper(notam.icaoLocation || notam.location);
   return {
     id: notam.id,
     ...(cls.airport ? { a: cls.airport } : {}),
-    ...(cls.airspace ? { k: cls.airspace, g: geo } : {}),
+    ...(cls.airspace ? { k: cls.airspace, ...(geo ? { g: geo } : {}) } : {}),
     loc: location,
     ...(notam.affectedFir ? { fir: upper(notam.affectedFir) } : {}),
     num: typeof notam.number === 'string' ? notam.number : '',
@@ -229,6 +231,40 @@ export function applyFeatures(items, features, nowMs) {
     }
   }
   return { upserted, removed };
+}
+
+const ICAO_LOCATION = /^[A-Z]{4}$/;
+
+/**
+ * Record in `locs` (location → FIR) the ICAO location of every NOTAM in
+ * `features`, relevant or not. An aerodrome the feed carries NOTAMs for is one
+ * where the absence of a closure NOTAM means open; one it carries nothing for
+ * stays unknown.
+ */
+export function noteLocations(locs, features) {
+  for (const feature of Array.isArray(features) ? features : []) {
+    const notam = feature?.properties?.coreNOTAMData?.notam;
+    const location = upper(notam?.icaoLocation || notam?.location);
+    if (ICAO_LOCATION.test(location)) locs[location] = upper(notam.affectedFir) || locs[location] || '';
+  }
+}
+
+/**
+ * Locations in `locs` where no closure NOTAM means open. A country-wide
+ * airspace closure is filed with the FIR as its location, not on each airport,
+ * so an airport whose FIR (or itself) has an airspace closure in effect is left
+ * out. A closure filed at another location inside the FIR, such as one control
+ * zone, does not close the FIR.
+ */
+export function coveredLocations(locs, items, nowMs) {
+  const closedAirspace = new Set();
+  for (const rec of Object.values(items)) {
+    if (rec.k === 'closure' && rec.loc && isActive(rec, nowMs)) closedAirspace.add(rec.loc);
+  }
+  return Object.entries(locs && typeof locs === 'object' ? locs : {})
+    .filter(([loc, fir]) => !closedAirspace.has(loc) && !closedAirspace.has(fir))
+    .map(([loc]) => loc)
+    .sort();
 }
 
 /** Drop records whose effective window has closed. Returns the number removed. */
@@ -334,6 +370,10 @@ export function mergeClosureSources(sources, watchIcaos) {
     for (const icao of snapshot.restrictedIcaos || []) if (watch.has(icao)) { restricted.add(icao); note(restrictedNotes, icao); }
   }
   for (const icao of closed) restricted.delete(icao);
+  const covered = new Set();
+  for (const { snapshot } of sources) {
+    for (const icao of Array.isArray(snapshot?.coveredIcaos) ? snapshot.coveredIcaos : []) if (watch.has(icao)) covered.add(icao);
+  }
   const reasons = {};
   const sourceByIcao = {};
   for (const icao of [...closed, ...restricted]) {
@@ -343,5 +383,5 @@ export function mergeClosureSources(sources, watchIcaos) {
       sourceByIcao[icao] = picked.label;
     }
   }
-  return { closedIcaos: [...closed], restrictedIcaos: [...restricted], reasons, sourceByIcao };
+  return { closedIcaos: [...closed], restrictedIcaos: [...restricted], reasons, sourceByIcao, coveredIcaos: [...covered].sort() };
 }

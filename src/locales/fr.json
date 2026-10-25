@@ -3075,7 +3075,9 @@
         "africa": "Afrique"
       },
       "scheduled": "Prév.",
-      "estimated": "Est."
+      "estimated": "Est.",
+      "normalOperations": "OPÉRATIONS NORMALES",
+      "open": "OUVERT"
     },
     "cyberThreat": {
       "title": "CYBER MENACE"

@@ -3125,7 +3125,9 @@
         "apac": "Asia-Pasifiki",
         "mena": "Mashariki ya Kati",
         "africa": "Afrika"
-      }
+      },
+      "normalOperations": "UENDESHAJI WA KAWAIDA",
+      "open": "WAZI"
     },
     "aircraft": {
       "altitude": "Mwinuko",

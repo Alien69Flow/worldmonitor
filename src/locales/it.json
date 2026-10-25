@@ -3075,7 +3075,9 @@
         "africa": "Africa"
       },
       "scheduled": "Pianificato",
-      "estimated": "Stimato"
+      "estimated": "Stimato",
+      "normalOperations": "OPERAZIONI NORMALI",
+      "open": "APERTO"
     },
     "cyberThreat": {
       "title": "MINACCIA INFORMATICA"

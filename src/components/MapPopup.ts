@@ -1788,9 +1788,13 @@ export class MapPopup {
       'closure': t('popups.flight.closure'),
     };
     // #3707: when severity is 'unknown' we have no delay-type signal either.
+    // A normal row carries delayType 'general', which would title it "delays
+    // reported". A NOTAM-sourced normal row knows only that the airport is open.
     const delayTypeLabel = delay.severity === 'unknown'
       ? 'Coverage unavailable'
-      : (delayTypeLabels[delay.delayType] || t('popups.flight.delays'));
+      : delay.severity === 'normal'
+        ? (delay.source === 'notam' ? t('popups.flight.open') : t('popups.flight.normalOperations'))
+        : (delayTypeLabels[delay.delayType] || t('popups.flight.delays'));
     const icon = delay.severity === 'unknown'
       ? '❔'
       : delay.delayType === 'closure' ? '🚫'

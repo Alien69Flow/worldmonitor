@@ -3125,7 +3125,9 @@
         "apac": "Ázsia-Csendes-óceán",
         "mena": "Közel-Kelet",
         "africa": "Afrika"
-      }
+      },
+      "normalOperations": "NORMÁL ÜZEMELTETÉS",
+      "open": "NYITVA"
     },
     "aircraft": {
       "altitude": "Magasság",

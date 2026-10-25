@@ -3076,7 +3076,9 @@
         "africa": "Africa"
       },
       "scheduled": "Programat",
-      "estimated": "Est"
+      "estimated": "Est",
+      "normalOperations": "OPERAȚIUNI NORMALE",
+      "open": "DESCHIS"
     },
     "aircraft": {
       "altitude": "Altitudine",

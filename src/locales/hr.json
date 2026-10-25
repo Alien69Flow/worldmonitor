@@ -3154,7 +3154,9 @@
         "apac": "Azija i Pacifik",
         "mena": "Bliski istok",
         "africa": "Afrika"
-      }
+      },
+      "normalOperations": "NORMALNO POSLOVANJE",
+      "open": "OTVORENO"
     },
     "aircraft": {
       "altitude": "Nadmorska visina",

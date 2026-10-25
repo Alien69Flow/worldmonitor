@@ -3056,7 +3056,9 @@
         "africa": "Αφρική"
       },
       "scheduled": "Προγρ.",
-      "estimated": "Εκτ."
+      "estimated": "Εκτ.",
+      "normalOperations": "ΚΑΝΟΝΙΚΗ ΛΕΙΤΟΥΡΓΙΑ",
+      "open": "ΑΝΟΙΚΤΟ"
     },
     "aircraft": {
       "altitude": "Υψόμετρο",
