@@ -763,15 +763,17 @@
       "logCleared": "Το αρχείο καταγραφής καθαρίστηκε.",
       "worldMonitor": {
         "apiKey": {
-          "title": "Κλειδί άδειας / API",
+          "title": "Κλειδί επιφάνειας εργασίας",
           "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Οι συνδρομητές API Starter και API Business δημιουργούν αυτό το κλειδί στον διαδικτυακό πίνακα από Settings → API Keys. Αν χαθεί το πλήρες κλειδί, ανακαλέστε το και δημιουργήστε ένα νέο."
+          "description": "Για εκδόσεις χωρίς σύνδεση. Pro: δημιουργήστε ένα στο Settings → API Keys στο web· τα κλειδιά σχεδίου API λειτουργούν επίσης. Για δική σας χρήση· οι κοινόχρηστες ή δημόσιες ανάπτυξες χρειάζονται σχέδιο API. Βοήθεια: worldmonitor.app/docs/api-keys"
         },
         "dividerOr": "Ή",
         "register": {
-          "title": "Χρειάζεστε κλειδί API;",
-          "description": "Δείτε το worldmonitor.app/docs/api-keys για οδηγίες βήμα προς βήμα. Τα μη αυτόματα κλειδιά API απαιτούν πρόγραμμα API Starter ή API Business.",
-          "submitBtn": "Προβολή προγραμμάτων API"
+          "submitBtn": "Προβολή σχεδίων"
+        },
+        "signIn": {
+          "title": "Σύνδεση με Pro",
+          "description": "Το Pro λειτουργεί εδώ μόλις συνδεθείτε από το κύριο παράθυρο. Δεν απαιτείται κλειδί."
         }
       },
       "table": {
