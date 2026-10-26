@@ -497,6 +497,18 @@ async function fetchAviationStackSingle(
     // number, so only operating rows count.
     const flights = (Array.isArray(json?.data) ? json.data : []).filter(f => !f?.flight?.codeshared);
     if (flights.length === 0) {
+      const dataType = json.data === undefined ? 'missing'
+        : json.data === null ? 'null' : Array.isArray(json.data) ? 'array' : typeof json.data;
+      const pagination = Object.fromEntries(['limit', 'offset', 'count', 'total'].map(key => {
+        const value = json.pagination?.[key];
+        return [key, Number.isSafeInteger(value) && value >= 0 ? value : null];
+      }));
+      logger.warn(JSON.stringify({
+        event: 'aviationstack_omission', iata, requestDate: today, requestLimit: 100,
+        httpStatus: resp.status, dataType,
+        rawCount: Array.isArray(json.data) ? json.data.length : null,
+        operatingCount: flights.length, pagination,
+      }));
       logger.warn(`[Aviation] ${iata}: provider omitted hub (0 flight records)`);
       return { iata, status: 'omitted', alert: null, flightCount: 0 };
     }
