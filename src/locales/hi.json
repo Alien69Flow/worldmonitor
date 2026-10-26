@@ -2385,6 +2385,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "ऑडियो उपलब्ध नहीं है",
       "notLive": "{{name}} फिलहाल लाइव नहीं है",
       "signInToYouTube": "YouTube में साइन-इन करें",
       "openOnYouTube": "YouTube पर खोलें",

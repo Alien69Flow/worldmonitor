@@ -2046,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "오디오를 사용할 수 없습니다",
       "notLive": "{{name}}은(는) 현재 라이브 중이 아닙니다",
       "signInToYouTube": "YouTube 로그인",
       "openOnYouTube": "YouTube에서 열기",

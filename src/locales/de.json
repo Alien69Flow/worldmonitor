@@ -1997,6 +1997,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Audio nicht verfügbar",
       "notLive": "{{name}} sendet derzeit nicht live",
       "signInToYouTube": "Bei YouTube anmelden",
       "openOnYouTube": "Auf YouTube öffnen",

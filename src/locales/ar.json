@@ -1922,6 +1922,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "الصوت غير متاح",
       "notLive": "{{name}} is not currently live",
       "openOnYouTube": "Open on YouTube",
       "manage": "إدارة القنوات",

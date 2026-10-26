@@ -2046,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "音訊不可用",
       "notLive": "{{name}} 當前未直播",
       "signInToYouTube": "登入YouTube",
       "openOnYouTube": "在 YouTube 開啟",

@@ -2385,6 +2385,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "A hang nem érhető el",
       "notLive": "{{name}} jelenleg nem él",
       "signInToYouTube": "Bejelentkezés a YouTube-ba",
       "openOnYouTube": "Megnyitás a YouTube-on",

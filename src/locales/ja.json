@@ -2046,6 +2046,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "音声を利用できません",
       "notLive": "{{name}} is not currently live",
       "signInToYouTube": "YouTubeにサインイン",
       "openOnYouTube": "Open on YouTube",

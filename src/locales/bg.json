@@ -2050,6 +2050,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Няма наличен звук",
       "notLive": "{{name}} не е в момента живо",
       "signInToYouTube": "Влез в YouTube",
       "openOnYouTube": "Отворени на YouTube",

@@ -1041,6 +1041,7 @@
   "components.liveMedia.idleSettingsHint": "Change this anytime in Settings › Media.",
   "components.liveMedia.idleStatus": "Paused for inactivity",
   "components.liveNews.addChannel": "Add channel",
+  "components.liveNews.audioUnavailable": "Audio unavailable",
   "components.liveNews.availableChannels": "Available channels",
   "components.liveNews.cancel": "Cancel",
   "components.liveNews.channelOrVideoUrl": "YouTube channel or video URL",

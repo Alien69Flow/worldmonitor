@@ -1522,6 +1522,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Ljud är inte tillgängligt",
       "notLive": "{{name}} is not currently live",
       "openOnYouTube": "Open on YouTube",
       "manage": "Hantera kanaler",

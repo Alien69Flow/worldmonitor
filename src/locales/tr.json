@@ -2050,6 +2050,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Ses kullanılamıyor",
       "notLive": "{{name}} is not currently live",
       "signInToYouTube": "YouTube'a giriş yap",
       "openOnYouTube": "Open on YouTube",

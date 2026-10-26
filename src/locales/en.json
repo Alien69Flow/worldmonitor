@@ -2440,6 +2440,7 @@
       "idleKeepPlayingToast": "Live video will keep playing when idle. Change in Settings › Media."
     },
     "liveNews": {
+      "audioUnavailable": "Audio unavailable",
       "notLive": "{{name}} is not currently live",
       "embedBlocked": "YouTube won’t play {{name}} inside other sites right now",
       "unavailable": "{{name}} can’t be played right now",

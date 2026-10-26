@@ -2050,6 +2050,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Ο ήχος δεν είναι διαθέσιμος",
       "notLive": "Το {{name}} δεν είναι ζωντανά αυτή τη στιγμή",
       "signInToYouTube": "Σύνδεση στο YouTube",
       "openOnYouTube": "Άνοιγμα στο YouTube",

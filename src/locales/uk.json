@@ -2398,6 +2398,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Аудіо недоступне",
       "notLive": "{{name}} зараз не транслює",
       "signInToYouTube": "Увійти на YouTube",
       "openOnYouTube": "Відкрити на YouTube",

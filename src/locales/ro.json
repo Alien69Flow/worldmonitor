@@ -2054,6 +2054,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Sunet indisponibil",
       "notLive": "{{name}} nu este live momentan",
       "signInToYouTube": "Conectați-vă la YouTube",
       "openOnYouTube": "Deschide pe YouTube",

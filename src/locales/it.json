@@ -2001,6 +2001,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Audio non disponibile",
       "notLive": "{{name}} non è attualmente in diretta",
       "signInToYouTube": "Accedi a YouTube",
       "openOnYouTube": "Apri su YouTube",

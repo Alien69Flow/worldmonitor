@@ -2396,6 +2396,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Zvuk nije dostupan",
       "notLive": "{{name}} trenutno nije aktivna",
       "signInToYouTube": "Prijavi se na YouTube",
       "openOnYouTube": "Otvori na YouTube-u",

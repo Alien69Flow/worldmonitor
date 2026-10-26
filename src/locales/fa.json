@@ -2388,6 +2388,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "صدا در دسترس نیست",
       "notLive": "{{name}} is not currently live",
       "signInToYouTube": "Sign in to YouTube",
       "openOnYouTube": "Open on YouTube",

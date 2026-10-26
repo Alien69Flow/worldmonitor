@@ -2037,6 +2037,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Zvuk není k dispozici",
       "notLive": "{{name}} právě nevysílá živě",
       "signInToYouTube": "Přihlaste se do YouTube",
       "openOnYouTube": "Otevřít na YouTube",

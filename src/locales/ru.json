@@ -2058,6 +2058,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Звук недоступен",
       "notLive": "{{name}} сейчас не в эфире",
       "signInToYouTube": "Войти в YouTube",
       "openOnYouTube": "Открыть на YouTube",

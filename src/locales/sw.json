@@ -2388,6 +2388,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Sauti haipatikani",
       "notLive": "{{name}} hapatikani kwa sasa",
       "signInToYouTube": "Ingia kwenye YouTube",
       "openOnYouTube": "Fungua kwenye YouTube",

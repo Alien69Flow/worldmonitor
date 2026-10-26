@@ -1524,6 +1524,7 @@
       }
     },
     "liveNews": {
+      "audioUnavailable": "Áudio indisponível",
       "notLive": "{{name}} is not currently live",
       "openOnYouTube": "Open on YouTube",
       "manage": "Gerir canais",
