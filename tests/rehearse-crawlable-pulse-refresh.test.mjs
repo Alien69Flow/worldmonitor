@@ -24,8 +24,8 @@ function capture() {
       NR: { partial: true, score: null, band: null, trend: null, geoConvergence: null, advisory: 'Exercise Normal Precautions', methodologyVersion: '', asOf: null },
     },
     chokepoints: {
-      hormuz_strait: { disruptionScore: '70', status: 'Red', description: 'Hormuz', baselineFrom: '2024-10-19', asOf: '2026-10-19T04:53:51.886Z' },
-      suez: { disruptionScore: '35', status: 'Yellow', description: 'Suez', baselineFrom: '2024-10-19', asOf: '2026-10-19T04:53:51.886Z' },
+      hormuz_strait: { disruptionScore: '70', status: 'Red', officialLatestDate: null, officialLatestTotal: null, officialAvg7d: null, description: 'Hormuz', baselineFrom: '2024-10-19', asOf: '2026-10-19T04:53:51.886Z' },
+      suez: { disruptionScore: '35', status: 'Yellow', officialLatestDate: '2026-10-11', officialLatestTotal: 43, officialAvg7d: 44.3, description: 'Suez', baselineFrom: '2024-10-19', asOf: '2026-10-19T04:53:51.886Z' },
     },
     forecastScorecard: { attemptedAt: '2026-10-19', attemptedAtMs: Date.parse('2026-10-19T04:55:00Z'), capturedAt: '2026-10-19' },
   };
@@ -59,8 +59,49 @@ describe('crawlable pulse refresh rehearsal', () => {
     assert.equal(drifted.chokepoints.hormuz_strait.disruptionScore, '35');
     assert.equal(drifted.chokepoints.hormuz_strait.status, 'Yellow');
     assert.equal(drifted.chokepoints.hormuz_strait.description, 'Hormuz', 'a chokepoint keeps its identity');
+    for (const id of ['hormuz_strait', 'suez']) {
+      assert.deepEqual(
+        [drifted.chokepoints[id].officialLatestDate, drifted.chokepoints[id].officialLatestTotal],
+        ['2026-10-11', 43],
+        `${id} publishes a PortWatch day, as a capture with none withheld does`,
+      );
+    }
 
     assert.deepEqual(original, capture(), 'the committed capture is not mutated');
+  });
+
+  it('empties whichever PortWatch side a capture holds, so neither can be assumed', () => {
+    const allWithheld = capture();
+    Object.assign(allWithheld.chokepoints.suez, { officialLatestDate: null, officialLatestTotal: null, officialAvg7d: null });
+    const published = driftLivePulseCapture(allWithheld, { targetDate: '2026-10-26' });
+    for (const reading of Object.values(published.chokepoints)) {
+      assert.equal(reading.officialLatestDate, '2026-10-18');
+      assert.ok(reading.officialLatestTotal > 0, 'a capture with no published day is rehearsed with every day published');
+    }
+
+    const allPublished = capture();
+    Object.assign(allPublished.chokepoints.hormuz_strait, { officialLatestDate: '2026-10-11', officialLatestTotal: 4, officialAvg7d: 3.7 });
+    const withheld = driftLivePulseCapture(allPublished, { targetDate: '2026-10-26' });
+    for (const reading of Object.values(withheld.chokepoints)) {
+      assert.equal(reading.officialLatestTotal, null, 'a capture with no withheld day is rehearsed with every day withheld');
+      assert.equal(reading.officialLatestDate, null);
+    }
+  });
+
+  it('empties the minority PortWatch side of a mixed capture, so a pin on it fails', () => {
+    const mostlyWithheld = capture();
+    mostlyWithheld.chokepoints.bab_el_mandeb = { ...mostlyWithheld.chokepoints.hormuz_strait, description: 'Bab el-Mandeb' };
+    const drifted = driftLivePulseCapture(mostlyWithheld, { targetDate: '2026-10-26' });
+    for (const reading of Object.values(drifted.chokepoints)) {
+      assert.equal(reading.officialLatestTotal, null, 'two withheld days to one published rehearse with none published');
+    }
+
+    const mostlyPublished = capture();
+    mostlyPublished.chokepoints.bab_el_mandeb = { ...mostlyPublished.chokepoints.suez, description: 'Bab el-Mandeb' };
+    const published = driftLivePulseCapture(mostlyPublished, { targetDate: '2026-10-26' });
+    for (const reading of Object.values(published.chokepoints)) {
+      assert.ok(reading.officialLatestTotal > 0, 'two published days to one withheld rehearse with none withheld');
+    }
   });
 
   it('drifts values but not dates when the capture is already today', () => {
