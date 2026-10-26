@@ -519,7 +519,7 @@ function mountHls(container: HTMLElement, candidate: Extract<Candidate, { kind: 
         else fail({ kind: 'fatal', detail: 'hls-unsupported' });
         return;
       }
-      const instance = new Hls({ enableWorker: true, lowLatencyMode: true });
+      const instance = new Hls({ enableWorker: true, lowLatencyMode: true, capLevelOnFPSDrop: true });
       hls = instance;
       instance.on(Hls.Events.LEVEL_LOADED, (_event, data) => { manifest = data.details.live ? 'live' : 'vod'; });
       instance.on(Hls.Events.BUFFER_CREATED, (_event, { tracks }) => {

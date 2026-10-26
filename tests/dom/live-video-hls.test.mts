@@ -17,7 +17,7 @@ const hlsjs = vi.hoisted(() => {
     readonly listeners = new Map<string, Listener>();
     destroyed = false;
 
-    constructor() {
+    constructor(readonly config: Partial<import('hls.js').HlsConfig>) {
       instances.push(this);
     }
 
@@ -120,6 +120,12 @@ afterEach(() => {
 });
 
 describe('live video HLS transport', () => {
+  it('allows hls.js to lower quality when video frames are dropped', async () => {
+    await openLivePlaylistTile();
+
+    expect(hlsjs.instances[0]?.config.capLevelOnFPSDrop).toBe(true);
+  });
+
   it('uses created buffers for audio inventory and ignores retired buffer events', async () => {
     const audio = vi.fn();
     openHlsTile(undefined, undefined, audio);
