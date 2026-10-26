@@ -321,7 +321,8 @@ describe('News Intelligence accepted projections', () => {
         assert.equal(foot(document), '');
       }
       for (const value of ['headlines', ['headline'], null, { stories: [], advisories: [] },
-        { insights: { status: 'degraded' } }, { insights: { provenance: { storiesConsidered: 270 } } }]) {
+        { insights: { status: 'degraded' } }, { insights: { provenance: { storiesConsidered: 270 } } },
+        { insights: 'degraded' }, { insights: 8 }, { insights: ['headline'] }]) {
         send(result(value, true));
         assert.equal(rows(document).length, 0);
         assert.equal(document.getElementById('list').textContent,
@@ -333,6 +334,24 @@ describe('News Intelligence accepted projections', () => {
       assert.equal(rows(document).length, 1);
       assert.match(foot(document), /Showing 1 of 1 loaded stories/);
       assert.doesNotMatch(foot(document), /Snapshot|sampled|degraded/);
+    });
+  });
+
+  it('does not report an outage when a content-only result omits topStories', async () => {
+    // A host that forwards only content passes the bare projected value, with
+    // no projection wrapper to say the stories were left out on purpose.
+    const textOnly = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
+    await mount(textOnly(envelope()), async (document, send) => {
+      for (const value of [{ stories: [], advisories: [] }, { insights: { status: 'degraded' } }, { insights: 'degraded' }]) {
+        send(textOnly(value));
+        assert.equal(rows(document).length, 0);
+        assert.equal(document.getElementById('list').textContent,
+          'This response does not include data.insights.topStories, so the panel has no stories to show. The source was not reported unavailable.');
+      }
+      for (const value of [{ insights: null }, { insights: { topStories: null } }]) {
+        send(textOnly(value));
+        assert.equal(document.getElementById('list').textContent, 'News intelligence is temporarily unavailable.');
+      }
     });
   });
 
