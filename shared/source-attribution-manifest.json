@@ -2315,6 +2315,20 @@
       "status": "excluded"
     },
     {
+      "host": "cdn-uw2-prod.tsv2.amagi.tv",
+      "provider": "cdn-uw2-prod.tsv2.amagi.tv",
+      "kind": "feed",
+      "observed": true,
+      "license": "Excluded: live-video playback transport; channel/provider terms apply separately",
+      "attribution": "Excluded from the external-provider count: presentation-only HLS stream, not an ingested dataset.",
+      "status": "excluded",
+      "references": [
+        {
+          "path": "src/config/live-video-sources.ts"
+        }
+      ]
+    },
+    {
       "host": "cdn.debugbear.com",
       "provider": "cdn.debugbear.com",
       "kind": "structured",

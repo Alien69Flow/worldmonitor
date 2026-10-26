@@ -53,6 +53,16 @@
       ]
     },
     {
+      "id": "livenow-fox",
+      "name": "LiveNOW from FOX",
+      "handle": null,
+      "region": "na",
+      "geo": null,
+      "sources": [
+        "https://cdn-uw2-prod.tsv2.amagi.tv/linear/amg00488-foxdigital-livenowbyfox-lgus/playlist.m3u8"
+      ]
+    },
+    {
       "id": "newsmax",
       "name": "Newsmax",
       "handle": "@NewsmaxTV",
@@ -954,6 +964,7 @@
         "yahoo",
         "cnn",
         "fox-news",
+        "livenow-fox",
         "newsmax",
         "abc-news",
         "cbs-news",
