@@ -493,9 +493,7 @@ async function fetchAviationStackSingle(
       const authFailed = AVIATIONSTACK_AUTH_ERROR_CODES.has(json.error.code);
       return { iata, status: 'failed', alert: null, flightCount: 0, authFailed };
     }
-    // A codeshare row repeats an operating flight under another airline's
-    // number, so only operating rows count.
-    const flights = (Array.isArray(json?.data) ? json.data : []).filter(f => !f?.flight?.codeshared);
+    const flights = operatingFlights(Array.isArray(json?.data) ? json.data : []);
     if (flights.length === 0) {
       const dataType = json.data === undefined ? 'missing'
         : json.data === null ? 'null' : Array.isArray(json.data) ? 'array' : typeof json.data;
@@ -523,6 +521,23 @@ async function fetchAviationStackSingle(
     logger.warn(`[Aviation] ${iata}: fetch error: ${err?.message || err}`);
     return { iata, status: 'failed', alert: null, flightCount: 0 };
   }
+}
+
+// A codeshare row repeats its operating flight under another airline's number,
+// so rows count once per operating flight. The operating row is often not on
+// the page, and late pages can hold codeshares only, so a codeshare stands in.
+function operatingFlights(rows) {
+  const seen = new Set();
+  const operatingFirst = [...rows.filter(f => !f?.flight?.codeshared), ...rows.filter(f => f?.flight?.codeshared)];
+  return operatingFirst.filter(f => {
+    const shared = f?.flight?.codeshared;
+    const number = shared ? shared.flight_iata : f?.flight?.iata;
+    if (!number) return !shared;
+    const key = `${String(number).toUpperCase()} ${f?.departure?.scheduled ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 const zoneFormats = new Map();

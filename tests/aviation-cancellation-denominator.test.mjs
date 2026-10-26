@@ -91,15 +91,19 @@ test('a departed flight counts as due even when its schedule is later than now',
 });
 
 // AviationStack writes departure times as the airport's local wall clock with a
-// "+00:00" suffix. Riyadh is UTC+3 all year.
-function riyadhFlight(status, offsetMs, { codeshared = false, ...extra } = {}) {
+// "+00:00" suffix. Riyadh is UTC+3 all year. A codeshare row names its
+// operating flight in lower case and repeats its status and schedule.
+let flightNumber = 0;
+function riyadhFlight(status, offsetMs, { codeshareOf, ...extra } = {}) {
   const wall = new Date(Date.now() + offsetMs + 3 * HOUR).toISOString().replace(/\.\d{3}Z$/, '+00:00');
+  const iata = codeshareOf ? `AF${++flightNumber}` : `SV${++flightNumber}`;
   return {
     flight_status: status,
-    flight: { codeshared: codeshared ? { airline_iata: 'SV', flight_iata: 'SV1' } : null },
+    flight: { iata, codeshared: codeshareOf ? { airline_iata: 'sv', flight_iata: codeshareOf.toLowerCase() } : null },
     departure: { timezone: 'Asia/Riyadh', scheduled: wall, delay: null, ...extra },
   };
 }
+const codeshareOf = (row) => ({ ...riyadhFlight(row.flight_status, 0, { codeshareOf: row.flight.iata }), departure: row.departure });
 
 test('departure times are read in the airport time zone', async () => {
   const rows = [
@@ -113,10 +117,11 @@ test('departure times are read in the airport time zone', async () => {
 });
 
 test('a codeshare row is the same departure, counted once', async () => {
+  const cancelled = Array.from({ length: 20 }, (_, i) => riyadhFlight('cancelled', -(i + 1) * 60_000));
   const rows = [
     ...Array.from({ length: 20 }, (_, i) => riyadhFlight('landed', -(i + 1) * 60_000)),
-    ...Array.from({ length: 20 }, (_, i) => riyadhFlight('cancelled', -(i + 1) * 60_000)),
-    ...Array.from({ length: 40 }, (_, i) => riyadhFlight('cancelled', -(i + 1) * 60_000, { codeshared: true })),
+    ...cancelled,
+    ...cancelled.flatMap(row => [codeshareOf(row), codeshareOf(row)]),
   ];
   const alert = await classify(rows);
   assert.equal(alert.reason, '50% flights cancelled');
@@ -127,12 +132,14 @@ test('a codeshare row is the same departure, counted once', async () => {
 test('advance cancellations late in the day are not most flights cancelled', async () => {
   // Live 2026-10-25 17:59 UTC: the page was RUH's last 100 of 621 departures,
   // 20:40 to 23:55 local. 6 were due, 67 cancelled, 46 of those codeshares.
+  const cancelled = Array.from({ length: 21 }, (_, i) => riyadhFlight('cancelled', HOUR + i * 5 * 60_000));
+  const scheduled = Array.from({ length: 15 }, (_, i) => riyadhFlight('scheduled', HOUR + i * 9 * 60_000));
   const rows = [
     ...Array.from({ length: 6 }, () => riyadhFlight('active', -10 * 60_000)),
-    ...Array.from({ length: 21 }, (_, i) => riyadhFlight('cancelled', HOUR + i * 5 * 60_000)),
-    ...Array.from({ length: 46 }, (_, i) => riyadhFlight('cancelled', HOUR + i * 4 * 60_000, { codeshared: true })),
-    ...Array.from({ length: 15 }, (_, i) => riyadhFlight('scheduled', HOUR + i * 9 * 60_000)),
-    ...Array.from({ length: 12 }, (_, i) => riyadhFlight('scheduled', HOUR + i * 9 * 60_000, { codeshared: true })),
+    ...cancelled,
+    ...Array.from({ length: 46 }, (_, i) => codeshareOf(cancelled[i % 21])),
+    ...scheduled,
+    ...Array.from({ length: 12 }, (_, i) => codeshareOf(scheduled[i])),
   ];
   assert.equal(await classify(rows), null);
 });
@@ -159,8 +166,31 @@ test('a delay alert from a page of future flights carries no cancellations', asy
   assert.equal(alert.cancelledFlights, 0);
 });
 
-test('a page of only codeshare rows is omitted, not normal', async () => {
-  const rows = Array.from({ length: 20 }, (_, i) => riyadhFlight('scheduled', -(i + 1) * 60_000, { codeshared: true }));
+test('a page of only codeshare rows counts the flights they name', async () => {
+  // Live 2026-10-25 19:00 to 23:00 UTC: DOH, LHR and FCO went missing for
+  // hours because their late pages held no operating row.
+  const operating = Array.from({ length: 12 }, (_, i) => riyadhFlight(i < 3 ? 'landed' : 'scheduled', -(i + 1) * 60_000, { delay: i < 6 ? 25 : null }));
+  const rows = operating.flatMap(row => [codeshareOf(row), codeshareOf(row)]);
+  const result = await seedIntlDelays({
+    apiKey: 'fixture-key',
+    airports: [RUH],
+    logger: quietLogger,
+    fetchFn: async () => Response.json({ pagination: { limit: 100, offset: 0, count: rows.length, total: 24 }, data: rows }),
+  });
+  assert.equal(result.coverage[0].status, 'disruption');
+  assert.equal(result.coverage[0].flightCount, 12);
+  assert.equal(result.alerts[0].totalFlights, 12);
+  assert.equal(result.alerts[0].delayedFlightsPct, 50);
+});
+
+test('the operating row wins over a codeshare listed before it', async () => {
+  const landed = Array.from({ length: 12 }, (_, i) => riyadhFlight('landed', -(i + 1) * 60_000));
+  const rows = [...landed.map(row => ({ ...codeshareOf(row), flight_status: 'cancelled' })), ...landed];
+  assert.equal(await classify(rows), null);
+});
+
+test('a codeshare row that names no operating flight is not counted', async () => {
+  const rows = Array.from({ length: 20 }, (_, i) => ({ ...riyadhFlight('cancelled', -(i + 1) * 60_000), flight: { iata: `AF${i}`, codeshared: { airline_iata: 'sv' } } }));
   const result = await seedIntlDelays({
     apiKey: 'fixture-key',
     airports: [RUH],
@@ -168,7 +198,6 @@ test('a page of only codeshare rows is omitted, not normal', async () => {
     fetchFn: async () => Response.json({ pagination: { limit: 100, offset: 0, count: rows.length, total: 20 }, data: rows }),
   });
   assert.equal(result.coverage[0].status, 'omitted');
-  assert.equal(result.coverage[0].flightCount, 0);
 });
 
 test('the time zone offset is taken at the departure, not at the wall clock read as UTC', async (t) => {
