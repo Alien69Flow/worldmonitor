@@ -182,11 +182,22 @@ function getBlockedTermSet(config: TrendingConfig): Set<string> {
   ]);
 }
 
-function normalizeEntityType(type: string): string {
-  return type.replace(/^[BI]-/, '').trim().toUpperCase();
+function normalizeEntityType(type: unknown): string {
+  if (typeof type !== 'string') {
+    return '';
+  }
+
+  return type
+    .replace(/^[BI]-/i, '')
+    .trim()
+    .toUpperCase();
 }
 
-function normalizeMLEntityText(text: string): string {
+function normalizeMLEntityText(text: unknown): string {
+  if (typeof text !== 'string') {
+    return '';
+  }
+
   return text
     .replace(/^##/, '')
     .replace(/\s+/g, ' ')
