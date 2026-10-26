@@ -40,6 +40,48 @@ function jmespathOriginalKeys(v: unknown): string[] {
   return [`<${typeof v}>`];
 }
 
+// Dotted paths into the unprojected value, so an expression that missed can
+// be rewritten against the real nesting (`data.insights.topStories[]`) rather
+// than only the top-level keys. Arrays are described by their first object
+// element. Bounded in depth and count.
+const KEY_PATH_MAX_DEPTH = 4;
+const KEY_PATH_MAX_COUNT = 80;
+function jmespathKeyPaths(v: unknown): string[] {
+  const paths: string[] = [];
+  const walk = (node: unknown, prefix: string, depth: number) => {
+    if (depth >= KEY_PATH_MAX_DEPTH || paths.length >= KEY_PATH_MAX_COUNT) return;
+    if (Array.isArray(node)) {
+      const arrayPath = `${prefix}[]`;
+      if (prefix) paths.push(arrayPath);
+      const first = node.find(item => item !== null && typeof item === 'object' && !Array.isArray(item));
+      if (first !== undefined) walk(first, arrayPath, depth);
+      return;
+    }
+    if (node === null || typeof node !== 'object') return;
+    for (const key of Object.keys(node as object)) {
+      if (paths.length >= KEY_PATH_MAX_COUNT) return;
+      const path = prefix ? `${prefix}.${key}` : key;
+      const child = (node as Record<string, unknown>)[key];
+      if (!Array.isArray(child)) paths.push(path);
+      walk(child, path, depth + 1);
+    }
+  };
+  walk(v, '', 0);
+  return paths;
+}
+
+// A projection that selected nothing: null, or a multiselect whose every
+// entry is null. JMESPath yields null for any path that does not exist, so
+// this is almost always a wrong field name, and returning it as data reads as
+// "the source has nothing". An empty list or a partly-null hash is a result.
+function isEmptyProjection(projected: unknown): boolean {
+  if (projected === null || projected === undefined) return true;
+  const entries = Array.isArray(projected)
+    ? projected
+    : typeof projected === 'object' ? Object.values(projected as object) : null;
+  return entries !== null && entries.length > 0 && entries.every(entry => entry === null);
+}
+
 // Apply a JMESPath expression to a value. Always returns `{ text }`. Pure;
 // never throws. Identity path (no `exprArg`, empty string, non-string) skips
 // projection entirely and returns `JSON.stringify(value)`. See module-doc
@@ -74,6 +116,15 @@ export function applyJmespath(value: unknown, exprArg: unknown): ApplyJmespathRe
       original_keys: jmespathOriginalKeys(value),
     };
     return { text: JSON.stringify(envelope), value: envelope, failed: 'invalid_expression' };
+  }
+
+  if (isEmptyProjection(projected)) {
+    const envelope = {
+      _jmespath_error: 'empty_projection: every selected field resolved to null. JMESPath returns null for paths that do not exist; check the field names against key_paths.',
+      original_keys: jmespathOriginalKeys(value),
+      key_paths: jmespathKeyPaths(value),
+    };
+    return { text: JSON.stringify(envelope), value: envelope, failed: 'empty_projection' };
   }
 
   // Output gate — measured before serializing. Projections can share

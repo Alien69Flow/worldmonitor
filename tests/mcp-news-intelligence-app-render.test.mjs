@@ -314,17 +314,38 @@ describe('News Intelligence accepted projections', () => {
       assert.equal(document.getElementById('list').textContent, 'No news stories available.');
       assert.match(foot(document), /Showing 0 of 0 loaded stories/);
       assert.doesNotMatch(foot(document), /Snapshot|stale|degraded|sampled/);
-      for (const value of [{ insights: null }, { insights: { topStories: null } }, 'headlines', ['headline'], null]) {
+      for (const value of [{ insights: null }, { insights: { topStories: null } }]) {
         send(result(value, true));
         assert.equal(rows(document).length, 0);
         assert.equal(document.getElementById('list').textContent, 'News intelligence is temporarily unavailable.');
         assert.equal(foot(document), '');
+      }
+      for (const value of ['headlines', ['headline'], null, { stories: [], advisories: [] },
+        { insights: { status: 'degraded' } }, { insights: { provenance: { storiesConsidered: 270 } } }]) {
+        send(result(value, true));
+        assert.equal(rows(document).length, 0);
+        assert.equal(document.getElementById('list').textContent,
+          'This jmespath projection does not include data.insights.topStories, so the panel has no stories to show. The source was not reported unavailable.');
+        // A projected status is still the source's own report, so it stays.
+        assert.equal(foot(document), value?.insights?.status === 'degraded' ? 'Source reports degraded news intelligence.' : '');
       }
       send(result({ insights: { topStories: [story(7)] } }, true));
       assert.equal(rows(document).length, 1);
       assert.match(foot(document), /Showing 1 of 1 loaded stories/);
       assert.doesNotMatch(foot(document), /Snapshot|sampled|degraded/);
     });
+  });
+
+  it('names a projection error instead of reporting an outage', async () => {
+    const error = { _jmespath_error: 'empty_projection: every selected field resolved to null.', original_keys: ['cached_at', 'stale', 'data'] };
+    for (const wire of [result(error), { content: result(error).content }]) {
+      await mount(wire, document => {
+        assert.equal(rows(document).length, 0);
+        assert.equal(document.getElementById('card').style.display, 'none');
+        assert.match(document.getElementById('empty').textContent, /projection could not be applied/);
+        assert.doesNotMatch(document.getElementById('list').textContent, /temporarily unavailable/);
+      });
+    }
   });
 
   it('keeps hostile titles, sources and provenance as literal text', async () => {
