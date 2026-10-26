@@ -177,7 +177,7 @@ import {
 import { formatResilienceServerLevel } from './resilience-widget-utils';
 
 import { isAllowedPreviewUrl } from '@/utils/imagery-preview';
-import { pinWebcam, isPinned } from '@/services/webcams/pinned-store';
+import { mountWebcamPinButton } from '@/services/webcams/pinned-store';
 import type { WebcamEntry, WebcamCluster } from '@/generated/client/worldmonitor/webcam/v1/service_client';
 import { fetchWebcamImage } from '@/services/webcams';
 import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
@@ -5819,31 +5819,16 @@ export class DeckGLMap {
       popup.appendChild(link);
     }
 
-    const pinBtn = document.createElement('button');
-    pinBtn.className = 'webcam-pin-btn';
     let imageData: Awaited<ReturnType<typeof fetchWebcamImage>> | null = null;
-    if (isPinned(id)) {
-      pinBtn.classList.add('webcam-pin-btn--pinned');
-      pinBtn.textContent = '\u{1F4CC} Pinned';
-      pinBtn.disabled = true;
-    } else {
-      pinBtn.textContent = '\u{1F4CC} Pin';
-      pinBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        pinWebcam({
-          webcamId: id,
-          title: webcam.title || imageData?.title || '',
-          lat: webcam.lat,
-          lng: webcam.lng,
-          category: webcam.category || 'other',
-          country: webcam.country || '',
-          playerUrl: imageData?.playerUrl || '',
-        });
-        pinBtn.classList.add('webcam-pin-btn--pinned');
-        pinBtn.textContent = '\u{1F4CC} Pinned';
-        pinBtn.disabled = true;
-      });
-    }
+    const pinBtn = mountWebcamPinButton(() => ({
+      webcamId: id,
+      title: webcam.title || imageData?.title || '',
+      lat: webcam.lat,
+      lng: webcam.lng,
+      category: webcam.category || 'other',
+      country: webcam.country || '',
+      playerUrl: imageData?.playerUrl || '',
+    }));
     popup.appendChild(pinBtn);
 
     const cleanup = () => {

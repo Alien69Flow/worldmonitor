@@ -72,7 +72,7 @@ import type { SatellitePosition } from '@/services/satellites';
 import type { ImageryScene } from '@/generated/server/worldmonitor/imagery/v1/service_server';
 import { isAllowedPreviewUrl } from '@/utils/imagery-preview';
 import { getCategoryStyle } from '@/services/webcams';
-import { pinWebcam, isPinned } from '@/services/webcams/pinned-store';
+import { mountWebcamPinButton } from '@/services/webcams/pinned-store';
 import type { WebcamEntry, WebcamCluster } from '@/generated/client/worldmonitor/webcam/v1/service_client';
 import type { TrafficAnomaly as ProtoTrafficAnomaly, DdosLocationHit } from '@/generated/client/worldmonitor/infrastructure/v1/service_client';
 import type { RadiationObservation } from '@/services/radiation';
@@ -1836,31 +1836,16 @@ export class GlobeMap {
             span.textContent = 'Preview unavailable';
             previewDiv.appendChild(span);
           }
-          const pinBtn = document.createElement('button');
-          pinBtn.className = 'webcam-pin-btn';
+          const pinBtn = mountWebcamPinButton(() => ({
+            webcamId: d.webcamId,
+            title: d.title || img.title || '',
+            lat: d._lat,
+            lng: d._lng,
+            category: d.category || 'other',
+            country: d.country || '',
+            playerUrl: img.playerUrl || '',
+          }));
           pinBtn.style.cssText = 'display:block;margin-top:4px;';
-          if (isPinned(d.webcamId)) {
-            pinBtn.classList.add('webcam-pin-btn--pinned');
-            pinBtn.textContent = '\u{1F4CC} Pinned';
-            pinBtn.disabled = true;
-          } else {
-            pinBtn.textContent = '\u{1F4CC} Pin';
-            pinBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              pinWebcam({
-                webcamId: d.webcamId,
-                title: d.title || img.title || '',
-                lat: d._lat,
-                lng: d._lng,
-                category: d.category || 'other',
-                country: d.country || '',
-                playerUrl: img.playerUrl || '',
-              });
-              pinBtn.classList.add('webcam-pin-btn--pinned');
-              pinBtn.textContent = '\u{1F4CC} Pinned';
-              pinBtn.disabled = true;
-            });
-          }
           wrapper.appendChild(pinBtn);
         });
       });

@@ -39,7 +39,7 @@ import {
 import { STARTUP_HUBS, ACCELERATORS, TECH_HQS, CLOUD_REGIONS } from '@/config/tech-geo';
 import { AI_DATA_CENTERS } from '@/config/ai-datacenters';
 import { worldTopologyUrl, UNDERSEA_CABLES, NUCLEAR_FACILITIES, SANCTIONED_COUNTRIES, ECONOMIC_CENTERS, SPACEPORTS, CRITICAL_MINERALS } from '@/config/geo-map';
-import { pinWebcam, isPinned } from '@/services/webcams/pinned-store';
+import { mountWebcamPinButton } from '@/services/webcams/pinned-store';
 import type { WebcamEntry, WebcamCluster } from '@/generated/client/worldmonitor/webcam/v1/service_client';
 import { tokenizeForMatch, matchKeyword, findMatchingKeywords } from '@/utils/keyword-match';
 import { MapPopup } from './MapPopup';
@@ -3935,31 +3935,16 @@ export class MapComponent {
             previewDiv.appendChild(span);
           }
 
-          const pinBtn = document.createElement('button');
-          pinBtn.className = 'webcam-pin-btn';
           const wcId = cam.webcamId;
-          if (isPinned(wcId)) {
-            pinBtn.classList.add('webcam-pin-btn--pinned');
-            pinBtn.textContent = '\u{1F4CC} Pinned';
-            pinBtn.disabled = true;
-          } else {
-            pinBtn.textContent = '\u{1F4CC} Pin';
-            pinBtn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              pinWebcam({
-                webcamId: wcId,
-                title: cam.title || img?.title || '',
-                lat: cam.lat,
-                lng: cam.lng,
-                category: cam.category || 'other',
-                country: cam.country || '',
-                playerUrl: img?.playerUrl || '',
-              });
-              pinBtn.classList.add('webcam-pin-btn--pinned');
-              pinBtn.textContent = '\u{1F4CC} Pinned';
-              pinBtn.disabled = true;
-            });
-          }
+          const pinBtn = mountWebcamPinButton(() => ({
+            webcamId: wcId,
+            title: cam.title || img?.title || '',
+            lat: cam.lat,
+            lng: cam.lng,
+            category: cam.category || 'other',
+            country: cam.country || '',
+            playerUrl: img?.playerUrl || '',
+          }));
           tooltip.appendChild(pinBtn);
         });
       });
