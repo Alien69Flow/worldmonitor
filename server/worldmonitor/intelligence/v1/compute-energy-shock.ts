@@ -7,6 +7,7 @@ import type {
   GasStorageObservation,
   CrudeShareBaseline,
   LngShareBaseline,
+  ReserveEstimate,
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
 
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
@@ -57,6 +58,7 @@ import { ISO2_TO_COMTRADE } from './_comtrade-reporters';
 import { CURRENT_FLOWS_WINDOW, PRE_CRISIS_WINDOW } from '../../../../shared/hormuz-crisis.js';
 import { HORMUZ_BYPASS_AS_OF, HORMUZ_BYPASS_BY_EXPORTER, lostShareAfterBypass } from './_hormuz-bypass';
 import type { BypassScenario } from './_hormuz-bypass';
+import { nonIeaReserveFor } from './_non-iea-reserves';
 
 const BYPASS_EXPORTER_NAMES: Record<string, string> = { SA: 'Saudi Arabia', AE: 'UAE', IQ: 'Iraq' };
 // Round to the reported 0.1 kbd first so prose and fields agree (2209.47 -> 2209.5 -> 2,210).
@@ -279,11 +281,11 @@ export async function computeEnergyShockScenario(
     : null;
   const liveFlowRatio: number | null = rawFlowRatio !== null ? clamp(rawFlowRatio, 0, 1.5) : null;
 
-  // Oil v12: Hormuz bypass recovery on the pre-crisis baseline. v11 oil caches
-  // count every Gulf barrel as lost; v10 and earlier carry the 2024 annual share only.
+  // Oil v13: cover from non-IEA reserve estimates (India, China). v12 oil caches
+  // report no cover for them; v11 count every Gulf barrel as lost.
   // Gas g2: the Hormuz LNG route share is the importer's measured Qatar + UAE
   // share, not a flat 30%.
-  const cacheVersion = `${needsOil ? 'v12' : 'v4'}${needsGas ? '-g2' : ''}`;
+  const cacheVersion = `${needsOil ? 'v13' : 'v4'}${needsGas ? '-g2' : ''}`;
   const cacheKey = `energy:shock:${cacheVersion}:${code}:${chokepointId}:${disruptionPct}:${degraded ? 'd' : 'l'}:${fuelMode}`;
   const cached = await getCachedJson(cacheKey);
   if (cached) return cached as ComputeEnergyShockScenarioResponse;
@@ -575,9 +577,37 @@ export async function computeEnergyShockScenario(
   // days would otherwise pass as the scenario result, and the net-exporter -1
   // would contradict the "reported as 0" limitation above. The panel keys its
   // cover row on the same "not modeled" limitation text.
-  const effectiveCoverDays = oilModeled
-    ? computeEffectiveCoverDaysWithRamp(daysOfCover, netExporter, lossBeforeBypassKbd, crudeLossKbd, crudeImportsKbd)
-    : 0;
+  // Importers outside the IEA (India, China) have no stock observation. A
+  // dated reserve estimate gives their cover instead, labelled as an estimate.
+  const reserveSource = needsOil && !ieaStocksCoverage ? nonIeaReserveFor(code) : undefined;
+  const reserveApplied = reserveSource != null && oilModeled && crudeImportsKbd > 0;
+  // Stock in days of crude imports, so the IEA cover formula applies unchanged.
+  const reserveStockDays = (mb: number): number => (mb * 1000) / crudeImportsKbd;
+  const reserveCover = (mb: number): number =>
+    computeEffectiveCoverDaysWithRamp(reserveStockDays(mb), false, lossBeforeBypassKbd, crudeLossKbd, crudeImportsKbd);
+  const effectiveCoverDays = !oilModeled
+    ? 0
+    : reserveApplied
+      ? reserveCover(reserveSource.centralMb)
+      : computeEffectiveCoverDaysWithRamp(daysOfCover, netExporter, lossBeforeBypassKbd, crudeLossKbd, crudeImportsKbd);
+  let reserveEstimate: ReserveEstimate | undefined;
+  if (reserveSource) {
+    reserveEstimate = {
+      scope: reserveSource.scope,
+      asOf: reserveSource.asOf,
+      credibility: reserveSource.credibility,
+      lowMb: reserveSource.lowMb,
+      centralMb: reserveSource.centralMb,
+      highMb: reserveSource.highMb,
+      coverDaysLow: reserveApplied ? reserveCover(reserveSource.lowMb) : undefined,
+      coverDaysHigh: reserveApplied ? reserveCover(reserveSource.highMb) : undefined,
+    };
+    const mb = (v: number): string => v.toLocaleString('en-US');
+    const coverText = reserveApplied
+      ? `effective cover ~${effectiveCoverDays} days (range ${reserveEstimate.coverDaysLow}-${reserveEstimate.coverDaysHigh}) against the modeled loss`
+      : 'cover is not modeled because the oil loss is not modeled';
+    limitations.push(`Strategic reserve estimate (not IEA data, ${reserveSource.credibility} credibility): ${reserveSource.scope}; ${mb(reserveSource.centralMb)} M bbl central (range ${mb(reserveSource.lowMb)}-${mb(reserveSource.highMb)}) as of ${reserveSource.asOf}; ${coverText}. ${reserveSource.basis}`);
+  }
   if (needsOil && effectiveCoverDays === -1) {
     limitations.push('effectiveCoverDays -1 marks a net oil exporter (IEA); no import-cover duration applies.');
   } else if (needsOil && effectiveCoverDays >= EFFECTIVE_COVER_DAYS_CAP) {
@@ -592,17 +622,18 @@ export async function computeEnergyShockScenario(
     crudeImportsObserved,
     gulfCrudeShare,
     effectiveCoverDays,
-    daysOfCover,
+    reserveApplied ? Math.round(reserveStockDays(reserveSource.centralMb)) : daysOfCover,
     disruptionPct,
     products,
     coverageLevel,
     degraded,
-    ieaStocksCoverage,
+    ieaStocksCoverage || reserveApplied,
     comtradeCoverage,
     (preCrisisShare?.basis === 'comtrade_monthly'
       ? 'the pre-crisis supply mix'
       : preCrisisShare?.fromMonth ? `the ${preCrisisShare.fromMonth.slice(0, 4)} supply mix` : '')
       + (bypassModeled ? ' after bypass rerouting' : '') || undefined,
+    reserveApplied ? 'estimate' : 'iea',
   );
 
   let gasSensitivity: GasSensitivity | undefined;
@@ -720,6 +751,7 @@ export async function computeEnergyShockScenario(
     gasSensitivity,
     preCrisisBaseline,
     currentFlows,
+    reserveEstimate,
   };
 
   if (!needsOil) {
@@ -732,6 +764,7 @@ export async function computeEnergyShockScenario(
       !l.includes('Gulf crude share') &&
       !l.startsWith('Current flows') &&
       !l.startsWith('Hormuz bypass') &&
+      !l.startsWith('Strategic reserve estimate') &&
       !l.startsWith('Monthly Comtrade crude origin') &&
       !l.includes('IEA strategic stock') &&
       !l.includes('PortWatch flow data unavailable, using historical baseline multipliers')
@@ -739,6 +772,7 @@ export async function computeEnergyShockScenario(
     // Zero out oil-specific fields for gas-only mode
     response.preCrisisBaseline = undefined;
     response.currentFlows = undefined;
+    response.reserveEstimate = undefined;
     response.gulfCrudeShare = 0;
     response.crudeLossKbd = 0;
     response.products = [];
