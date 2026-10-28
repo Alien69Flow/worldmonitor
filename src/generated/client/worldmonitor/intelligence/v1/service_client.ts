@@ -935,6 +935,8 @@ export interface ComputeEnergyShockScenarioResponse {
   /** @deprecated */
   gasImpact?: GasImpact;
   gasSensitivity?: GasSensitivity;
+  preCrisisBaseline?: CrudeShareBaseline;
+  currentFlows?: CrudeShareBaseline;
 }
 
 export interface ProductImpact {
@@ -996,6 +998,15 @@ export interface LngShareBaseline {
   monthsCovered: number;
   hormuzLngShare: number;
   lngDisruptionTj: number;
+}
+
+export interface CrudeShareBaseline {
+  basis: string;
+  fromMonth: string;
+  toMonth: string;
+  monthsCovered: number;
+  gulfCrudeShare: number;
+  crudeLossKbd: number;
 }
 
 export interface GetCountryPortActivityRequest {
