@@ -851,6 +851,37 @@ function responseValidators(resp: Response): FeedValidators | undefined {
 /** Mirrors `RSS_MAX_BODY_BYTES` in scripts/ais-relay.cjs (the relay leg's cap). */
 const RSS_MAX_BODY_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Decode a feed body in the charset it declares: the Content-Type charset,
+ * else the XML prolog's encoding, else UTF-8. Folha de S.Paulo serves
+ * ISO-8859-1 with a bare `text/xml`, so a fixed UTF-8 decode garbled every
+ * accented title. An unknown label falls back to UTF-8.
+ */
+export function decodeFeedBody(bytes: Uint8Array, contentType: string | null): string {
+  // A byte-order mark wins over any declaration, as in browsers. UTF-16 has
+  // no ASCII prolog to sniff, so the BOM is the only way to find it.
+  const bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 'utf-8'
+    : bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le'
+      : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be'
+        : null;
+  if (bom) return new TextDecoder(bom).decode(bytes);
+  let label = /charset\s*=\s*["']?([\w.:-]+)/i.exec(contentType ?? '')?.[1];
+  if (!label) {
+    // The prolog is ASCII in every encoding a feed declares, so a Latin-1
+    // read of the first bytes finds it without knowing the charset yet.
+    const head = new TextDecoder('latin1').decode(bytes.subarray(0, 256));
+    label = /^\s*<\?xml[^>]*\bencoding\s*=\s*["']([\w.:-]+)["']/i.exec(head)?.[1];
+  }
+  if (label) {
+    try {
+      return new TextDecoder(label).decode(bytes);
+    } catch {
+      // Unknown label: fall through to UTF-8.
+    }
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 async function fetchRssText(
   url: string,
   signal: AbortSignal,
@@ -871,7 +902,10 @@ async function fetchRssText(
     if (!resp.ok) return { text: null, failure: 'direct-error' };
     // Same 5 MiB ceiling the relay leg enforces; an oversized body throws
     // here and falls through to the relay like any other direct failure.
-    const text = new TextDecoder().decode(await readBoundedResponseBody(resp, RSS_MAX_BODY_BYTES));
+    const text = decodeFeedBody(
+      await readBoundedResponseBody(resp, RSS_MAX_BODY_BYTES),
+      resp.headers.get('content-type'),
+    );
     // Defensive: upstream may return HTTP 200 with an HTML interstitial
     // (Cloudflare bot challenge, captcha page). Reject up front so the
     // caller's relay fallback fires instead of caching an empty parse.
@@ -1285,6 +1319,10 @@ function parseRssXml(xml: string, feed: ServerFeed, variant: string): ParseResul
     } else {
       link = extractTag(block, 'link', blockLower);
     }
+    // A publisher click counter carries the article URL after a `*`
+    // (redir.folha.com.br/.../*https://www1.folha.uol.com.br/...). Keep the
+    // article URL; the publisher-link gate below still checks its host.
+    link = link.replace(/^https?:\/\/[^/?#*]+\/[^*?#]*\*(?=https?:\/\/)/i, '');
     // Strip non-HTTP links (javascript:, data:, etc.) before any downstream use.
     if (!/^https?:\/\//i.test(link)) link = '';
 
