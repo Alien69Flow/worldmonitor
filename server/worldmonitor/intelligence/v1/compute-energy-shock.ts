@@ -20,6 +20,7 @@ import {
   computeGulfShareFromPartners,
   computeEffectiveCoverDaysWithRamp,
   parseJodiStocks,
+  parseNetOilImports,
   JODI_STOCK_MAX_AGE_MONTHS,
   jodiNetCrudeExporter,
   EFFECTIVE_COVER_DAYS_CAP,
@@ -104,6 +105,7 @@ interface JodiOil {
   refineryYields?: JodiRefineryYieldsLike | null;
   productTrade?: { preCrisisBaseline?: unknown; currentFlows?: unknown } | null;
   stocks?: unknown;
+  netOilImports?: unknown;
 }
 
 interface IeaStocks {
@@ -284,12 +286,14 @@ export async function computeEnergyShockScenario(
     : null;
   const liveFlowRatio: number | null = rawFlowRatio !== null ? clamp(rawFlowRatio, 0, 1.5) : null;
 
+  // Oil v15: IEA days converted to barrels with JODI net oil imports (crude
+  // and products); v14 used crude imports alone.
   // Oil v14: cover for importers outside the IEA from the stocks they report
   // to JODI. v13 oil caches carry hand-entered India/China reserve estimates;
   // v12 report no cover for them; v11 count every Gulf barrel as lost.
   // Gas g2: the Hormuz LNG route share is the importer's measured Qatar + UAE
   // share, not a flat 30%.
-  const cacheVersion = `${needsOil ? 'v14' : 'v4'}${needsGas ? '-g2' : ''}`;
+  const cacheVersion = `${needsOil ? 'v15' : 'v4'}${needsGas ? '-g2' : ''}`;
   const cacheKey = `energy:shock:${cacheVersion}:${code}:${chokepointId}:${disruptionPct}:${degraded ? 'd' : 'l'}:${fuelMode}`;
   const cached = await getCachedJson(cacheKey);
   if (cached) return cached as ComputeEnergyShockScenarioResponse;
@@ -601,13 +605,31 @@ export async function computeEnergyShockScenario(
   const stocksApplied = jodiStocks != null && oilModeled && !netExporter && crudeImportsKbd > 0;
   // Stock in days of crude imports, so the IEA cover formula applies unchanged.
   const stockDays = stocksApplied ? (stocksTotalMb * 1000) / crudeImportsKbd : 0;
+  // IEA days count the previous calendar year's net oil imports, crude and
+  // products, so they become barrels at that rate. JODI's raw sums are a
+  // proxy: IEA also deducts naphtha, adjusts for stock changes and converts
+  // products to crude-oil equivalent. Crude imports alone
+  // understate a product importer (Australia) and overstate a product
+  // exporter (Korea); they stand in only when JODI has no eligible value for
+  // that year (9+ complete months, net importing). The year is the one before
+  // IEA's own data month, which can lag or lead JODI's.
+  const ieaMonth = typeof ieaStocks?.dataMonth === 'string' && /^\d{4}-\d{2}$/.test(ieaStocks.dataMonth) ? ieaStocks.dataMonth : null;
+  const ieaBasisYear = ieaMonth ? Number(ieaMonth.slice(0, 4)) - 1 : null;
+  const netOilImports = parseNetOilImports(jodiOil?.netOilImports, ieaBasisYear);
+  const ieaBasisKbd = netOilImports?.kbd ?? crudeImportsKbd;
   const effectiveCoverDays = netExporter
     ? -1
     : !oilModeled
     ? 0
     : stocksApplied
       ? computeEffectiveCoverDaysWithRamp(stockDays, false, lossBeforeBypassKbd, crudeLossKbd, crudeImportsKbd)
-      : computeEffectiveCoverDaysWithRamp(daysOfCover, netExporter, lossBeforeBypassKbd, crudeLossKbd, crudeImportsKbd);
+      : computeEffectiveCoverDaysWithRamp(daysOfCover, netExporter, lossBeforeBypassKbd, crudeLossKbd, ieaBasisKbd);
+  if (oilModeled && ieaStocksCoverage && !netExporter && daysOfCover > 0) {
+    const kbd = (v: number): string => v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    limitations.push(netOilImports
+      ? `IEA days of cover converted to barrels with JODI ${netOilImports.year} net oil imports (crude and products) of ${kbd(netOilImports.kbd)} kb/d, a proxy for the net imports IEA counts days against, which deduct naphtha, adjust for stock changes and convert products to crude-oil equivalent.`
+      : `IEA days of cover converted to barrels with JODI crude imports of ${kbd(crudeImportsKbd)} kb/d; JODI net oil imports for ${ieaBasisYear ?? 'the year IEA counts days against'} are unavailable, so cover is misstated for a country that trades products.`);
+  }
   const mb1 = (v: number): number => Math.round(v * 10) / 10;
   let reportedStocks: ReportedStocks | undefined;
   if (jodiStocks) {
