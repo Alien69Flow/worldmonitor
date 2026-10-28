@@ -22,6 +22,7 @@ import {
   LAYER_TO_SOURCE,
   STORAGE_KEYS,
   isPanelInVariantDefaults,
+  digestEditionsFor,
 } from '@/config';
 import { resolveNewsCategories, enabledNewsCategoryKeys, type ResolvedCategory } from '@/config/feed-resolution';
 import { variantShipsOrUserEnabled } from './panel-data-gate';
@@ -678,6 +679,64 @@ export class DataLoaderManager implements AppModule {
     }
 
     markLcpDebug('wm:data:country-geometry-replay-ready', { replayed: cache.gpsJamming?.length ? 1 : 0 });
+  }
+
+  /**
+   * Digests of OTHER editions, fetched for cross-edition panels: a category a
+   * user enabled from another edition's dashboard is served by that edition's
+   * digest instead of per-feed browser fetches. One in-flight request per
+   * (edition, language), reused for `crossEditionDigestTtlMs` so N panels from
+   * the same edition cost one request per refresh. A failed fetch is not
+   * cached, so the next refresh retries it.
+   */
+  private readonly crossEditionDigests = new Map<string, { at: number; promise: Promise<ListFeedDigestResponse | null> }>();
+  private readonly crossEditionDigestTtlMs = 5 * 60_000;
+
+  private fetchEditionDigest(edition: string, language: string): Promise<ListFeedDigestResponse | null> {
+    const key = `${edition}:${language}`;
+    const now = Date.now();
+    const cached = this.crossEditionDigests.get(key);
+    if (cached && now - cached.at < this.crossEditionDigestTtlMs) return cached.promise;
+    const promise = (async (): Promise<ListFeedDigestResponse | null> => {
+      try {
+        const resp = await publicRpcFetch(
+          toApiUrl(`/api/news/v1/list-feed-digest?variant=${encodeURIComponent(edition)}&lang=${encodeURIComponent(language)}`),
+          { signal: AbortSignal.timeout(this.digestRequestTimeoutMs) },
+        );
+        if (!resp.ok) return null;
+        const data = await resp.json() as ListFeedDigestResponse;
+        return countDigestCategories(data) > 0 ? data : null;
+      } catch (e) {
+        console.warn(`[News] ${edition} digest fetch for a cross-edition panel failed:`, e);
+        return null;
+      }
+    })();
+    this.crossEditionDigests.set(key, { at: now, promise });
+    void promise.then((data) => {
+      if (!data && this.crossEditionDigests.get(key)?.promise === promise) this.crossEditionDigests.delete(key);
+    });
+    return promise;
+  }
+
+  /**
+   * Items for a cross-edition panel, read from every other edition whose
+   * digest carries `category` (a key such as `markets` is placed in both the
+   * finance and commodity editions). Returns null unless EVERY such edition's
+   * digest arrived and carries the category: a partial set would silently drop
+   * the missing edition's sources, so the caller falls back to fetching the
+   * full reachable feed set instead.
+   */
+  private async crossEditionCategoryItems(category: string): Promise<{ items: NewsItem[]; servedStale: boolean } | null> {
+    const editions = digestEditionsFor(category).filter(edition => edition !== SITE_VARIANT);
+    if (editions.length === 0) return null;
+    const language = getCurrentLanguage();
+    const digests = await Promise.all(editions.map(edition => this.fetchEditionDigest(edition, language)));
+    const carrying = digests.filter((d): d is ListFeedDigestResponse => !!d?.categories && category in d.categories);
+    if (carrying.length !== editions.length) return null;
+    return {
+      items: carrying.flatMap(d => (d.categories[category]?.items ?? []).map(protoItemToNewsItem)),
+      servedStale: carrying.some(d => d.coverage?.servedStale === true),
+    };
   }
 
   private async tryFetchDigest(): Promise<SelectedNewsDigest | null> {
@@ -1666,6 +1725,61 @@ export class DataLoaderManager implements AppModule {
         return items;
       }
 
+      // Cross-edition panel: read the digests of the editions that carry this
+      // category and merge them, source-fair, up to the custom-panel limit.
+      // Sources no digest carries yet (`browserOnly`, still on the migration
+      // list) keep the rotating direct fetch below, merged onto these items.
+      let crossEditionCarry: NewsItem[] | null = null;
+      let crossEditionServedStale = false;
+      let rotationFeeds = reachableFeeds;
+      if (isCustom) {
+        const crossEdition = await this.crossEditionCategoryItems(category);
+        if (crossEdition) {
+          recordSelectedFreshness(crossEdition.servedStale);
+          this.setNewsRefreshDegraded(category, false);
+          const digestItems = crossEdition.items.filter(i => enabledNames.has(i.source));
+          void ingestTrendingHeadlines(digestItems.map(i => ({
+            title: i.title,
+            pubDate: i.pubDate,
+            pubDateMissing: i.pubDateMissing,
+            source: i.source,
+            link: i.link,
+          })))
+            .catch((err) => {
+              console.warn('[News] ingestTrendingHeadlines failed (chunk load?):', err);
+            });
+          // Same #7084 gate as the home digest: a stale replay must not re-fire banners.
+          if (this.isCurrentNewsLoad(generation) && !crossEdition.servedStale) {
+            checkBatchForBreakingAlerts(digestItems);
+          }
+          this.flashMapForNews(digestItems);
+          // A source is digest-served only if this language's digest carries
+          // it: a server-side language restriction (`digestLang`) can exclude
+          // a source the browser still reaches.
+          const digestLanguage = getCurrentLanguage();
+          const directFeeds = reachableFeeds.filter(f =>
+            f.browserOnly || (f.digestLang !== undefined && f.digestLang !== digestLanguage));
+          if (directFeeds.length === 0) {
+            // Every reachable source is digest-served, so there is no partial
+            // source coverage to disclose on the badge.
+            this.clearNewsSourceCoverage(category);
+            const items = mergeRotatedNewsItems([], digestItems, {
+              maxItems: this.customCategoryMergedItemLimit,
+              enabledSources: enabledNames,
+            });
+            this.renderNewsForCategory(category, items);
+            this.ctx.statusPanel?.updateFeed(category.charAt(0).toUpperCase() + category.slice(1), {
+              status: 'ok',
+              itemCount: items.length,
+            });
+            return items;
+          }
+          crossEditionCarry = digestItems;
+          crossEditionServedStale = crossEdition.servedStale;
+          rotationFeeds = directFeeds;
+        }
+      }
+
       // Preset categories: serve last-known-good while the digest is briefly
       // unavailable. Custom categories are NEVER in the digest, so this branch
       // would fire on every refresh after the first load — getStaleNewsItems
@@ -1682,7 +1796,14 @@ export class DataLoaderManager implements AppModule {
       // before any render — renderNewsForCategory overwrites
       // ctx.newsByCategory, which is what getStaleNewsItems reads, so reading
       // it later would fold each partial render back into itself.
-      const carryOver = isCustom ? staleItems : [];
+      const rotationNames = new Set(rotationFeeds.map(f => f.name));
+      const carryOver = !isCustom
+        ? []
+        : crossEditionCarry
+          // Earlier direct fetches of the browser-only sources, plus this
+          // cycle's digest items (which supersede any older copies).
+          ? [...staleItems.filter(i => rotationNames.has(i.source)), ...crossEditionCarry]
+          : staleItems;
 
       /**
        * What to actually paint for a given set of freshly fetched items.
@@ -1699,6 +1820,9 @@ export class DataLoaderManager implements AppModule {
           enabledSources: enabledNames,
         });
       };
+
+      // Show the digest items now; the direct fetch below only adds to them.
+      if (crossEditionCarry) this.renderNewsForCategory(category, mergeForRender([]));
 
       // Per-feed fallback: fetch each feed individually (first load or digest unavailable)
       const renderIntervalMs = 100;
@@ -1780,17 +1904,20 @@ export class DataLoaderManager implements AppModule {
       // unreachable on every load and every refresh (#5873). It rotates
       // instead: same request budget, advanced by the cap each cycle, so every
       // source is reached within ceil(N / cap) cycles.
-      recordSelectedFreshness(false);
+      //
+      // Direct feeds merged onto a stale cross-edition digest keep the digest's
+      // stale state: the combined panel still carries replayed items.
+      recordSelectedFreshness(crossEditionCarry ? crossEditionServedStale : false);
       const rotationCycle = isCustom ? this.newsRotationCycle(category) : 0;
       const fallbackFeeds = isCustom
-        ? selectRotatingFeedWindow(reachableFeeds, this.perFeedFallbackCategoryFeedLimit, rotationCycle)
+        ? selectRotatingFeedWindow(rotationFeeds, this.perFeedFallbackCategoryFeedLimit, rotationCycle)
         : this.selectLimitedFeeds(enabledFeeds, this.perFeedFallbackCategoryFeedLimit);
       if (isCustom) {
         // Advanced as soon as the window is claimed rather than after the fetch
         // resolves, so a cycle that fails outright still moves on instead of
         // retrying the same failing window forever.
-        this.advanceNewsRotationCycle(category, reachableFeeds.length);
-        console.warn(`[News] Custom category "${category}" (not in variant preset), fetching ${fallbackFeeds.length}/${reachableFeeds.length} feeds directly (rotation cycle ${rotationCycle})`);
+        this.advanceNewsRotationCycle(category, rotationFeeds.length);
+        console.warn(`[News] Custom category "${category}" (not in variant preset), fetching ${fallbackFeeds.length}/${rotationFeeds.length} feeds directly (rotation cycle ${rotationCycle})`);
       } else if (options.allowDigestPendingFallback) {
         console.warn(`[News] Digest still pending for "${category}", using limited per-feed fallback (${fallbackFeeds.length}/${enabledFeeds.length} feeds)`);
       } else if (fallbackFeeds.length < enabledFeeds.length) {
