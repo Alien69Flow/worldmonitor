@@ -17,7 +17,7 @@ import {
   VALID_CHOKEPOINTS,
   computeGulfShare,
   computeGulfShareFromPartners,
-  computeEffectiveCoverDays,
+  computeEffectiveCoverDaysWithRamp,
   EFFECTIVE_COVER_DAYS_CAP,
   GULF_SHARE_SOURCE_LABEL,
   buildAssessment,
@@ -55,6 +55,12 @@ import type {
 } from './_shock-compute';
 import { ISO2_TO_COMTRADE } from './_comtrade-reporters';
 import { CURRENT_FLOWS_WINDOW, PRE_CRISIS_WINDOW } from '../../../../shared/hormuz-crisis.js';
+import { HORMUZ_BYPASS_AS_OF, HORMUZ_BYPASS_BY_EXPORTER, lostShareAfterBypass } from './_hormuz-bypass';
+import type { BypassScenario } from './_hormuz-bypass';
+
+const BYPASS_EXPORTER_NAMES: Record<string, string> = { SA: 'Saudi Arabia', AE: 'UAE', IQ: 'Iraq' };
+// Round to the reported 0.1 kbd first so prose and fields agree (2209.47 -> 2209.5 -> 2,210).
+const fmtKbd = (v: number): string => Math.round(Math.round(v * 10) / 10).toLocaleString('en-US');
 
 const SHOCK_CACHE_TTL = 300;
 
@@ -273,12 +279,11 @@ export async function computeEnergyShockScenario(
     : null;
   const liveFlowRatio: number | null = rawFlowRatio !== null ? clamp(rawFlowRatio, 0, 1.5) : null;
 
-  // Oil v11: pre-crisis (headline) and current-flows Gulf shares from monthly
-  // Comtrade filings; v10 (product-trade netting) and earlier carry the 2024
-  // annual share only.
+  // Oil v12: Hormuz bypass recovery on the pre-crisis baseline. v11 oil caches
+  // count every Gulf barrel as lost; v10 and earlier carry the 2024 annual share only.
   // Gas g2: the Hormuz LNG route share is the importer's measured Qatar + UAE
   // share, not a flat 30%.
-  const cacheVersion = `${needsOil ? 'v11' : 'v4'}${needsGas ? '-g2' : ''}`;
+  const cacheVersion = `${needsOil ? 'v12' : 'v4'}${needsGas ? '-g2' : ''}`;
   const cacheKey = `energy:shock:${cacheVersion}:${code}:${chokepointId}:${disruptionPct}:${degraded ? 'd' : 'l'}:${fuelMode}`;
   const cached = await getCachedJson(cacheKey);
   if (cached) return cached as ComputeEnergyShockScenarioResponse;
@@ -329,6 +334,7 @@ export async function computeEnergyShockScenario(
         fromMonth: annualShare.year != null ? `${annualShare.year}-01` : '',
         toMonth: annualShare.year != null ? `${annualShare.year}-12` : '',
         monthsCovered: annualShare.year != null ? 12 : 0,
+        byPartner: annualShare.byPartner,
       }
       : null;
 
@@ -371,9 +377,8 @@ export async function computeEnergyShockScenario(
       const applied = crudeImportsObserved
         ? `, applied to JODI crude imports for ${typeof jodiOil?.dataMonth === 'string' && jodiOil.dataMonth ? jodiOil.dataMonth : 'an unknown month'}`
         : '';
-      const bypass = 'Hormuz bypass pipelines (Saudi East-West to Yanbu, UAE ADCOP to Fujairah) are not modeled';
       if (preCrisisShare.basis === 'comtrade_monthly') {
-        limitations.push(`Gulf crude share (headline, pre-crisis baseline): UN Comtrade monthly import value share ${window} (${preCrisisShare.monthsCovered} of 12 months) from ${GULF_SHARE_SOURCE_LABEL}${applied}; ${bypass}.`);
+        limitations.push(`Gulf crude share (headline, pre-crisis baseline): UN Comtrade monthly import value share ${window} (${preCrisisShare.monthsCovered} of 12 months) from ${GULF_SHARE_SOURCE_LABEL}${applied}.`);
       } else {
         const year = annualShare.year != null ? ` ${annualShare.year}` : '';
         const omitted = annualShare.omittedShare != null
@@ -382,7 +387,7 @@ export async function computeEnergyShockScenario(
         const why = monthlyGap(crudeOrigin?.importers?.[code]
           ? `fewer than ${MIN_PRE_CRISIS_MONTHS} of the 12 months ${window} have UN Comtrade monthly crude filings for ${code}`
           : `there are no UN Comtrade monthly crude filings for ${code} in ${window}`);
-        limitations.push(`Gulf crude share (headline, pre-crisis baseline): UN Comtrade${year} annual import value share from ${GULF_SHARE_SOURCE_LABEL}${applied}, because ${why}; ${bypass}${omitted}.`);
+        limitations.push(`Gulf crude share (headline, pre-crisis baseline): UN Comtrade${year} annual import value share from ${GULF_SHARE_SOURCE_LABEL}${applied}, because ${why}${omitted}.`);
       }
     }
   }
@@ -424,7 +429,20 @@ export async function computeEnergyShockScenario(
   // Reporting "full" coverage beside an insufficient-data message let the panel
   // paint a green badge; jodi_oil_coverage still reports row presence.
   const coverageLevel = deriveCoverageLevel(crudeImportsObserved, comtradeCoverage, ieaStocksCoverage, degraded);
-  const crudeLossKbd = oilModeled ? crudeImportsKbd * gulfCrudeShare * (disruptionPct / 100) : 0;
+  // Before any rerouting: every Gulf barrel through the chokepoint is lost.
+  const lossBeforeBypassKbd = oilModeled ? crudeImportsKbd * gulfCrudeShare * (disruptionPct / 100) : 0;
+
+  // Hormuz bypass (Saudi East-West to Yanbu, UAE ADCOP to Fujairah, Iraqi
+  // Kirkuk-Ceyhan) on the pre-crisis baseline. It needs the exporter split
+  // of the Gulf share; without it the bypass is reported as not modeled.
+  const bypassApplies = chokepointId === 'hormuz_strait' && preCrisisShare != null;
+  const bypassByPartner = bypassApplies ? preCrisisShare?.byPartner : undefined;
+  const bypassLossKbd = (scenario: BypassScenario): number => (oilModeled && preCrisisShare && bypassByPartner
+    ? crudeImportsKbd * baseExposure * lostShareAfterBypass({ gulfShare: preCrisisShare.share, byPartner: bypassByPartner }, disruptionPct / 100, scenario)
+    : lossBeforeBypassKbd);
+  const bypassModeled = bypassByPartner != null;
+  // Headline loss: the steady state after rerouting when the bypass is modeled.
+  const crudeLossKbd = bypassModeled ? bypassLossKbd('central') : lossBeforeBypassKbd;
 
   const toBaseline = (b: MonthlyGulfShare & { basis: string }): CrudeShareBaseline => {
     const share = b.share * baseExposure;
@@ -438,6 +456,22 @@ export async function computeEnergyShockScenario(
     };
   };
   const preCrisisBaseline = preCrisisShare ? toBaseline(preCrisisShare) : undefined;
+  if (preCrisisBaseline && bypassModeled && oilModeled) {
+    preCrisisBaseline.crudeLossAfterBypassKbd = Math.round(crudeLossKbd * 10) / 10;
+  }
+  if (needsOil && bypassApplies) {
+    if (bypassModeled) {
+      const routes = Object.entries(HORMUZ_BYPASS_BY_EXPORTER)
+        .map(([iso2, b]) => `${BYPASS_EXPORTER_NAMES[iso2] ?? iso2} reroutes ${Math.round(b.recovery.central * 100)}% of its Hormuz-loaded crude via the ${b.route} (${Math.round((1 - b.hormuzShare) * 100)}% already loads outside the Strait)`)
+        .join('; ');
+      const losses = oilModeled
+        ? ` Pre-crisis baseline loss: ${fmtKbd(lossBeforeBypassKbd)} kbd before bypass, ${fmtKbd(crudeLossKbd)} kbd after (range ${fmtKbd(bypassLossKbd('high'))}-${fmtKbd(bypassLossKbd('low'))} kbd from high to low recovery).`
+        : '';
+      limitations.push(`Hormuz bypass, as of ${HORMUZ_BYPASS_AS_OF}, central case, allocated pro rata to buyers: ${routes}; Kuwait, Qatar, Iran and Bahrain have no bypass.${losses} The first month runs at the before-bypass loss while rerouting ramps up (Japan's imports fell 65% in Apr 2026 and recovered by Jul); products and cover use the after-bypass loss.`);
+    } else {
+      limitations.push(`Hormuz bypass recovery is not modeled for ${code}: per-exporter shares are unavailable for the pre-crisis baseline, so every Gulf barrel counts as lost.`);
+    }
+  }
   // Shown beside the headline only: the latest filings already reflect the
   // closure (cargoes rerouted via Yanbu and Fujairah, replacement supply), so
   // they answer "what is still exposed now", not "what if it closed".
@@ -445,7 +479,9 @@ export async function computeEnergyShockScenario(
   if (needsOil) {
     if (currentFlows) {
       const loss = oilModeled ? `, crude loss ${currentFlows.crudeLossKbd} kbd` : '';
-      limitations.push(`Current flows: UN Comtrade monthly import value share ${currentFlows.fromMonth}..${currentFlows.toMonth}: ${(currentFlows.gulfCrudeShare * 100).toFixed(1)}% Gulf${loss}; shown beside the headline, not used for the products table or cover.`);
+      // Comtrade records supplier origin, not route: Saudi crude loaded at Yanbu still counts as Saudi.
+      const rerouted = chokepointId === 'hormuz_strait' ? '; a supplier-share estimate (Comtrade records origin, not route), so it counts Gulf crude already loading at Yanbu or Fujairah and applies no bypass recovery' : '';
+      limitations.push(`Current flows: UN Comtrade monthly import value share ${currentFlows.fromMonth}..${currentFlows.toMonth}: ${(currentFlows.gulfCrudeShare * 100).toFixed(1)}% Gulf${loss}${rerouted}; shown beside the headline, not used for the products table or cover.`);
     } else {
       const reason = originStale && computed.current
         ? 'the latest monthly UN Comtrade fetch failed, so the carried-forward filings are not shown as current'
@@ -540,7 +576,7 @@ export async function computeEnergyShockScenario(
   // would contradict the "reported as 0" limitation above. The panel keys its
   // cover row on the same "not modeled" limitation text.
   const effectiveCoverDays = oilModeled
-    ? computeEffectiveCoverDays(daysOfCover, netExporter, crudeLossKbd, crudeImportsKbd)
+    ? computeEffectiveCoverDaysWithRamp(daysOfCover, netExporter, lossBeforeBypassKbd, crudeLossKbd, crudeImportsKbd)
     : 0;
   if (needsOil && effectiveCoverDays === -1) {
     limitations.push('effectiveCoverDays -1 marks a net oil exporter (IEA); no import-cover duration applies.');
@@ -563,9 +599,10 @@ export async function computeEnergyShockScenario(
     degraded,
     ieaStocksCoverage,
     comtradeCoverage,
-    preCrisisShare?.basis === 'comtrade_monthly'
+    (preCrisisShare?.basis === 'comtrade_monthly'
       ? 'the pre-crisis supply mix'
-      : preCrisisShare?.fromMonth ? `the ${preCrisisShare.fromMonth.slice(0, 4)} supply mix` : undefined,
+      : preCrisisShare?.fromMonth ? `the ${preCrisisShare.fromMonth.slice(0, 4)} supply mix` : '')
+      + (bypassModeled ? ' after bypass rerouting' : '') || undefined,
   );
 
   let gasSensitivity: GasSensitivity | undefined;
@@ -694,6 +731,7 @@ export async function computeEnergyShockScenario(
       !l.includes('refinery yield') &&
       !l.includes('Gulf crude share') &&
       !l.startsWith('Current flows') &&
+      !l.startsWith('Hormuz bypass') &&
       !l.startsWith('Monthly Comtrade crude origin') &&
       !l.includes('IEA strategic stock') &&
       !l.includes('PortWatch flow data unavailable, using historical baseline multipliers')

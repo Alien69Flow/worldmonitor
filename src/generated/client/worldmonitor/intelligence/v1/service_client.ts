@@ -1007,6 +1007,7 @@ export interface CrudeShareBaseline {
   monthsCovered: number;
   gulfCrudeShare: number;
   crudeLossKbd: number;
+  crudeLossAfterBypassKbd?: number;
 }
 
 export interface GetCountryPortActivityRequest {

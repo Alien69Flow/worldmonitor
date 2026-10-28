@@ -23,6 +23,7 @@ import {
   GLOBAL_MEDIAN_REFINERY_YIELD,
   GLOBAL_MEDIAN_REFINERY_YIELD_SOURCE,
   computeMonthlyGulfShares,
+  computeEffectiveCoverDaysWithRamp,
   computeProductBalance,
 } from '../server/worldmonitor/intelligence/v1/_shock-compute.js';
 import { buildCrudeImportOrigin, crudeImportOriginPeriods } from '../scripts/seed-oil-trade-series.mjs';
@@ -293,7 +294,8 @@ describe('computeGulfShareFromPartners', () => {
 
   it('matches on the numeric partner code when the ISO2 is absent', () => {
     const result = computeGulfShareFromPartners({ totalValue: 1000, partners: [{ partnerCode: 48, value: 250 }, { partnerCode: '842', value: 750 }] });
-    assert.deepEqual(result, { share: 0.25, hasData: true, year: undefined, omittedShare: undefined });
+    // Bahrain (048) has no Hormuz bypass, so no per-exporter share is listed.
+    assert.deepEqual(result, { share: 0.25, hasData: true, year: undefined, omittedShare: undefined, byPartner: {} });
   });
 
   it('surfaces the seeder\'s omitted share so the reader can bound the attribution gap', () => {
@@ -894,8 +896,9 @@ function refineryYieldSeed(iso2, row = seededJodiRow(iso2)) {
     ...liveChokepointSeed(),
     [`energy:jodi-oil:v1:${iso2}`]: row,
     [`energy:iea-oil-stocks:v1:${iso2}`]: { daysOfCover: 200, netExporter: false, anomaly: false },
-    // A measured 70% Gulf crude share keeps the arithmetic readable.
-    [`comtrade:bilateral-hs4-partners:${iso2}:v1`]: { iso2, products: [{ hs4: '2709', year: 2024, totalValue: 1000, partners: [{ partnerIso2: 'SA', partnerCode: 682, value: 700 }, { partnerIso2: 'US', partnerCode: 842, value: 300 }], omittedCount: 0, omittedShare: 0 }] },
+    // A measured 70% Gulf crude share keeps the arithmetic readable. Kuwait has
+    // no Hormuz bypass, so no rerouting reduces the loss these yields apply to.
+    [`comtrade:bilateral-hs4-partners:${iso2}:v1`]: { iso2, products: [{ hs4: '2709', year: 2024, totalValue: 1000, partners: [{ partnerIso2: 'KW', partnerCode: 414, value: 700 }, { partnerIso2: 'US', partnerCode: 842, value: 300 }], omittedCount: 0, omittedShare: 0 }] },
   };
 }
 
@@ -1106,7 +1109,8 @@ describe('product shortfalls net product trade', () => {
     installEnergyShockRedis({ ...productTradeSeed('JP', row), ...originSeed() });
     const response = await computeShock({ countryCode: 'JP', chokepointId: 'hormuz_strait', disruptionPct: 100, fuelMode: 'oil' });
     const cur = response.currentFlows;
-    assert.ok(cur && cur.crudeLossKbd > 0 && cur.crudeLossKbd < response.crudeLossKbd, JSON.stringify(cur));
+    // The headline is after bypass rerouting; current flows get no bypass recovery.
+    assert.ok(cur && cur.crudeLossKbd > 0 && cur.crudeLossKbd !== response.crudeLossKbd, JSON.stringify(cur));
     const line = balanceLine(response, 'current flows');
     assert.ok(line?.includes(`crude loss at the current-flows Gulf share, ${cur.crudeLossKbd} kbd`), line);
     const flows = row.productTrade.currentFlows.products.gasoline;
@@ -1422,7 +1426,8 @@ describe('observed oil imports through handler and Decision brief', () => {
       installEnergyShockRedis({ ...liveChokepointSeed(),
         'energy:jodi-oil:v1:DE': { dataMonth: '2026-05', crude: { importsKbd }, diesel: { demandKbd: 80 } },
         // Measured 40% Gulf share so the loss is 20/40 at 50%/100% when imports are 100.
-        'comtrade:bilateral-hs4-partners:DE:v1': { iso2: 'DE', products: [{ hs4: '2709', year: 2024, totalValue: 1000, partners: [{ partnerIso2: 'SA', partnerCode: 682, value: 400 }, { partnerIso2: 'US', partnerCode: 842, value: 600 }], omittedCount: 0, omittedShare: 0 }] },
+        // Kuwait has no Hormuz bypass, so no rerouting reduces the loss.
+        'comtrade:bilateral-hs4-partners:DE:v1': { iso2: 'DE', products: [{ hs4: '2709', year: 2024, totalValue: 1000, partners: [{ partnerIso2: 'KW', partnerCode: 414, value: 400 }, { partnerIso2: 'US', partnerCode: 842, value: 600 }], omittedCount: 0, omittedShare: 0 }] },
       });
       const available = importsKbd === 0 || importsKbd === 100;
       const captures = [];
@@ -1581,8 +1586,12 @@ describe('production replay 2026-10-28: Gulf crude share comes from Comtrade par
     assert.equal(response.comtradeCoverage, true, 'partner-level Comtrade rows are Comtrade coverage');
     assert.equal(response.liveFlowRatio, 0.606, 'the live ratio stays reported as context');
     assert.ok(Math.abs(response.gulfCrudeShare - JP_GULF_SHARE) < 0.001, `gulfCrudeShare ${response.gulfCrudeShare} should be the measured ${JP_GULF_SHARE.toFixed(3)}, not 0.242`);
-    assert.ok(Math.abs(response.crudeLossKbd - JP_CRUDE_IMPORTS_KBD * JP_GULF_SHARE) < 0.1, `crudeLossKbd ${response.crudeLossKbd} must be imports × measured share`);
-    assert.equal(response.effectiveCoverDays, Math.round(178 / JP_GULF_SHARE), '178 IEA days stretched over the Gulf-sourced fraction, no cap');
+    const before = response.preCrisisBaseline.crudeLossKbd;
+    assert.ok(Math.abs(before - JP_CRUDE_IMPORTS_KBD * JP_GULF_SHARE) < 0.1, `loss before bypass ${before} must be imports × measured share`);
+    // Bypass rerouting (Saudi and UAE) lowers the headline; cover draws the first month at the before-bypass rate.
+    assert.equal(response.crudeLossKbd, response.preCrisisBaseline.crudeLossAfterBypassKbd);
+    assert.ok(response.crudeLossKbd < before);
+    assert.ok(Math.abs(response.effectiveCoverDays - computeEffectiveCoverDaysWithRamp(178, false, before, response.crudeLossKbd, JP_CRUDE_IMPORTS_KBD)) <= 1, `cover ${response.effectiveCoverDays}`);
     assert.ok(!response.limitations.some((l) => /proxied|40%/.test(l)), 'no proxy wording');
     assert.ok(!/indefinitely bridgeable/.test(response.assessment), response.assessment);
     assert.ok(response.limitations.some((l) => /UN Comtrade 2024/.test(l)), 'the measured share cites its source and year');
@@ -1834,11 +1843,12 @@ describe('pre-crisis and current-flows Gulf share baselines (Comtrade monthly, r
     assert.ok(Math.abs(cur.gulfCrudeShare - 0.605) < 0.001, `current ${cur.gulfCrudeShare}`);
 
     // The headline figures are the pre-crisis baseline, not the 2024 annual 94.6%.
+    // The headline loss is that baseline after Hormuz bypass rerouting.
     assert.equal(r.gulfCrudeShare, pre.gulfCrudeShare);
-    assert.equal(r.crudeLossKbd, pre.crudeLossKbd);
+    assert.equal(r.crudeLossKbd, pre.crudeLossAfterBypassKbd);
     assert.ok(Math.abs(pre.crudeLossKbd - JP_CRUDE_IMPORTS_KBD * 0.927) < 2, `pre-crisis loss ${pre.crudeLossKbd}`);
     assert.ok(Math.abs(cur.crudeLossKbd - JP_CRUDE_IMPORTS_KBD * 0.605) < 2, `current loss ${cur.crudeLossKbd}`);
-    assert.ok(Math.abs(r.effectiveCoverDays - 178 / 0.927) <= 1, `cover ${r.effectiveCoverDays}`);
+    assert.ok(Math.abs(r.effectiveCoverDays - computeEffectiveCoverDaysWithRamp(178, false, pre.crudeLossKbd, r.crudeLossKbd, JP_CRUDE_IMPORTS_KBD)) <= 1, `cover ${r.effectiveCoverDays}`);
 
     assert.ok(r.limitations.some((l) => /pre-crisis baseline/.test(l) && /2025-02\.\.2026-01/.test(l) && /12 of 12 months/.test(l) && /JODI crude imports for 2026-07/.test(l)), r.limitations.join('\n'));
     assert.ok(r.limitations.some((l) => /^Current flows/.test(l) && /2026-06\.\.2026-08/.test(l) && /60\.5%/.test(l) && /not used for the products table or cover/.test(l)), r.limitations.join('\n'));
@@ -2010,7 +2020,9 @@ describe('get-country-cost-shock surfaces an unmodeled oil scenario as unavailab
 
     assert.equal(result.hasEnergyModel, true);
     assert.equal(result.unavailableReason, '');
-    assert.equal(result.coverageDays, Math.round(178 / JP_GULF_SHARE));
+    const scenario = await computeShock({ countryCode: 'JP', chokepointId: 'hormuz_strait', disruptionPct: 100, fuelMode: 'oil' });
+    assert.equal(result.coverageDays, scenario.effectiveCoverDays);
+    assert.ok(result.coverageDays > Math.round(178 / JP_GULF_SHARE), 'bypass rerouting stretches cover beyond the no-bypass figure');
     assert.ok(result.supplyDeficitPct > 0, `supplyDeficitPct ${result.supplyDeficitPct}`);
   });
 
@@ -2046,7 +2058,9 @@ describe('get-country-cost-shock surfaces an unmodeled oil scenario as unavailab
 
     assert.equal(result.hasEnergyModel, false);
     assert.equal(result.supplyDeficitPct, 0);
-    assert.equal(result.coverageDays, Math.round(178 / JP_GULF_SHARE));
+    const scenario = await computeShock({ countryCode: 'JP', chokepointId: 'hormuz_strait', disruptionPct: 100, fuelMode: 'oil' });
+    assert.equal(result.coverageDays, scenario.effectiveCoverDays);
+    assert.ok(result.coverageDays > 0);
     assert.match(result.unavailableReason, /supplyDeficitPct is unavailable: no refined-product demand observation for JP/);
     assert.match(result.unavailableReason, /coverageDays is modelled/);
   });

@@ -62,12 +62,12 @@ export function buildDecisionBrief(selection: DecisionBriefSelection, captures: 
       add('route', `Comtrade crude route share, pre-crisis baseline${preBasis}`, usable && r.comtradeCoverage && nonnegative(r.gulfCrudeShare) ? pct(r.gulfCrudeShare) : null, '%', 'UN Comtrade / route model', month(pre?.toMonth));
       if (identity && !r.comtradeCoverage) unknowns.add(`${reference}: Comtrade route exposure is unavailable; the oil loss is not modeled without a measured origin share.`);
       add('route-current', `Comtrade crude route share, current flows${cur ? ` (monthly ${cur.fromMonth}..${cur.toMonth})` : ''}`, identity && cur && nonnegative(cur.gulfCrudeShare) ? pct(cur.gulfCrudeShare) : null, '%', 'UN Comtrade / route model', month(cur?.toMonth));
-      add('loss-current', 'Modeled crude loss, current flows', oilLossModeled && cur && nonnegative(cur.crudeLossKbd) ? cur.crudeLossKbd : null, 'kbd', 'JODI / route model', month(cur?.toMonth));
+      add('loss-current', 'Modeled crude loss, current flows, without bypass recovery', oilLossModeled && cur && nonnegative(cur.crudeLossKbd) ? cur.crudeLossKbd : null, 'kbd', 'JODI / route model', month(cur?.toMonth));
       if (identity && !cur) {
         // The handler names the cause (series not available yet, or too few filings).
         const reason = (r.limitations ?? []).find(l => l.startsWith('Current flows unavailable for '))
           ?.replace(/^Current flows unavailable for [A-Z]{2}: /, '').replace(/\.$/, '');
-        unknowns.add(`${reference}: current-flows Gulf share is unavailable${reason ? `: ${reason}` : ''}; figures use the pre-crisis baseline.`);
+        unknowns.add(`${reference}: current-flows Gulf share is unavailable${reason ? `: ${reason}` : ''}; ${pre ? 'figures use the pre-crisis baseline' : 'no pre-crisis share is available either'}.`);
       }
     }
     // Only the fixed route fraction is an assumption; measured shares and a
@@ -77,7 +77,11 @@ export function buildDecisionBrief(selection: DecisionBriefSelection, captures: 
       : g?.modelBasis === ZERO_LNG_BASIS
         ? { label: 'Monthly LNG loss (zero recorded LNG imports)', source: 'JODI' }
         : { label: 'Assumed monthly LNG loss', source: 'JODI / assumed route sensitivity' };
-    add('loss', gas ? gasLoss.label : 'Modeled crude loss, pre-crisis baseline', lossUsable ? gas ? g!.lngDisruptionTj : r.crudeLossKbd : null, gas ? 'TJ' : 'kbd', gas ? gasLoss.source : 'JODI / route model');
+    // With the Hormuz bypass modeled, the headline loss is after rerouting; the
+    // before-bypass loss is reported beside it.
+    const afterBypass = !gas && r.preCrisisBaseline?.crudeLossAfterBypassKbd != null;
+    if (afterBypass) add('loss-before-bypass', 'Modeled crude loss, pre-crisis baseline before bypass', oilLossModeled && nonnegative(r.preCrisisBaseline!.crudeLossKbd) ? r.preCrisisBaseline!.crudeLossKbd : null, 'kbd', 'JODI / route model');
+    add('loss', gas ? gasLoss.label : afterBypass ? 'Modeled crude loss, pre-crisis baseline after Hormuz bypass' : 'Modeled crude loss, pre-crisis baseline', lossUsable ? gas ? g!.lngDisruptionTj : r.crudeLossKbd : null, gas ? 'TJ' : 'kbd', gas ? gasLoss.source : 'JODI / route model');
     if (!r.portwatchCoverage) unknowns.add(`${reference}: shipping traffic is unavailable; no closure is established.`);
     return { reference, severity, loss: lossUsable ? gas ? g!.lngDisruptionTj : r.crudeLossKbd : null, unit: gas ? 'TJ' : 'kbd', demandPct: usable && gas ? g!.deficitPct : null, observedAt };
   });

@@ -18772,7 +18772,7 @@ paths:
                         - 'bab_el_mandeb'
                 - name: disruption_pct
                   in: query
-                  description: Percent of chokepoint flow disrupted, from 10 to 100. The handler clamps other values into that range, so 0 or an omitted value models 10.
+                  description: Percent of chokepoint flow disrupted, 10 to 100. Other values are clamped; an absent value models 10.
                   required: false
                   example: 1
                   schema:
@@ -51104,7 +51104,7 @@ components:
                 disruptionPct:
                     type: integer
                     format: int32
-                    description: Percent of chokepoint flow disrupted, from 10 to 100. The handler clamps other values into that range, so 0 or an omitted value models 10.
+                    description: Percent of chokepoint flow disrupted, 10 to 100. Other values are clamped; an absent value models 10.
                 fuelMode:
                     type: string
                     description: 'Fuel mode to model: "oil", "gas", or "both". Defaults to "oil".'
@@ -51125,7 +51125,7 @@ components:
                 crudeLossKbd:
                     type: number
                     format: double
-                    description: 'Headline: preCrisisBaseline.crudeLossKbd; 0 when the loss is not modeled or fuel_mode is gas.'
+                    description: 'Headline: preCrisisBaseline.crudeLossAfterBypassKbd when present, else preCrisisBaseline.crudeLossKbd; 0 when the loss is not modeled or fuel_mode is gas.'
                 products:
                     type: array
                     items:
@@ -51322,7 +51322,11 @@ components:
                 crudeLossKbd:
                     type: number
                     format: double
-                    description: Loss at disruption_pct; 0 when the loss is not modeled (see limitations).
+                    description: Loss at disruption_pct on the Gulf supplier share, with no bypass recovery. Comtrade records origin, not route, so for currentFlows it counts crude already loading at Yanbu or Fujairah (an upper bound). 0 when not modeled (see limitations).
+                crudeLossAfterBypassKbd:
+                    type: number
+                    format: double
+                    description: 'preCrisisBaseline only: steady state after Hormuz bypass rerouting. Absent for other chokepoints, without per-exporter shares, or when the loss is not modeled.'
             description: |-
                 Gulf crude share over one window and the crude loss it implies. preCrisisBaseline: the 12 months before the Hormuz crisis
                  from at least 9 monthly filings, else the annual share (basis comtrade_annual); drives the headline, products and cover.
@@ -60250,7 +60254,7 @@ components:
                 supplyDeficitPct:
                     type: number
                     format: double
-                    description: Average refined-product supply deficit % under full closure at the pre-crisis Gulf crude share (Gasoline/Diesel/Jet fuel/LPG average; HS 27 only)
+                    description: Average refined-product supply deficit % under full closure at the pre-crisis Gulf crude share, after bypass rerouting for Hormuz when per-exporter shares exist (average over the products among Gasoline/Diesel/Jet fuel/LPG/Naphtha with recorded positive demand; HS 27 only)
                 coverageDays:
                     type: integer
                     format: int32

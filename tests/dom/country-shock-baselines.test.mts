@@ -45,9 +45,20 @@ it('labels the pre-crisis baseline that drives the table and shows current flows
   const rows = [...el.querySelectorAll('.cdp-shock-baseline')].map(r => r.textContent);
   expect(rows).toEqual([
     'Pre-crisis (Feb 2025–Jan 2026): 92.7% Gulf crude, 2,208 kbd lost',
-    'Current flows (Jun 2026–Aug 2026): 60.5% Gulf crude, 1,441 kbd lost',
+    'Current flows (Jun 2026–Aug 2026): 60.5% Gulf crude, up to 1,441 kbd lost (no bypass recovery)',
   ]);
   expect(el.querySelector('.cdp-shock-baseline-note')?.textContent).toBe('Product deficits and cover below use the pre-crisis mix.');
+});
+
+it('shows the loss before and after Hormuz bypass rerouting when the bypass is modeled', () => {
+  const el = render(japan({
+    crudeLossKbd: 979.5,
+    preCrisisBaseline: { basis: 'comtrade_monthly', fromMonth: '2025-02', toMonth: '2026-01', monthsCovered: 12, gulfCrudeShare: 0.927, crudeLossKbd: 2209.5, crudeLossAfterBypassKbd: 979.5 },
+  }));
+  const rows = [...el.querySelectorAll('.cdp-shock-baseline')].map(r => r.textContent);
+  expect(rows[0]).toBe('Pre-crisis (Feb 2025–Jan 2026): 92.7% Gulf crude, 2,210 kbd lost before bypass, 980 kbd after');
+  expect(rows[1]).toBe('Current flows (Jun 2026–Aug 2026): 60.5% Gulf crude, up to 1,441 kbd lost (no bypass recovery)');
+  expect(el.querySelector('.cdp-shock-baseline-note')?.textContent).toBe('Product deficits and cover below use the pre-crisis mix after bypass rerouting (Yanbu, Fujairah, Ceyhan).');
 });
 
 it('names the annual fallback and an unavailable current figure (China)', () => {
