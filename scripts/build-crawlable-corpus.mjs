@@ -2610,7 +2610,7 @@ function renderCountryInstabilityIndexPage({
   const path = '/country-instability-index/';
   const movementClaim = ciiRanking.movementClaim
     ?? livePulseMovementClaim(livePulseSnapshotAgeDays(capturedAt));
-  const description = `See World Monitor's live Country Instability Index rankings, with current scores, ${movementClaim.availableMovement}, severity levels, and update times for ${ciiRanking.entries.length} Tier-1 countries.`;
+  const description = `Live Country Instability Index rankings: scores, ${movementClaim.availableMovement}, severity and update times for ${ciiRanking.entries.length} Tier-1 countries.`;
   const datasetId = `${absoluteUrl(baseUrl, path)}#dataset`;
   const rankingId = `${absoluteUrl(baseUrl, path)}#ranking`;
   const versionLabel = `CII ${ciiRanking.methodologyVersion}`;
@@ -5256,7 +5256,7 @@ ${LIVE_TOPIC_PAGES.map((page) => `        <a class="card" href="${escapeHtml(pag
   return pageDocument({
     baseUrl,
     path,
-    title: 'Live Intelligence Tools | World Monitor',
+    title: 'Live Tools: Outages, Fear & Greed, Oil, Debt | World Monitor',
     description,
     lastmod,
     jsonLd: {
