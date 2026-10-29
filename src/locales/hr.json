@@ -564,7 +564,8 @@
     "fearGreed": "Strah & Pohlepa",
     "marketBreadth": "Širina Tržišta",
     "climateNews": "Klimatske Vijesti",
-    "fx": "Tečajevi deviza"
+    "fx": "Tečajevi deviza",
+    "ukmtoIncidents": "Incidenti UKMTO-a"
   },
   "commands": {
     "prefixes": {
@@ -4199,5 +4200,14 @@
         "0": "Vodič slojeva"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "Podaci UKMTO-a nisu dostupni.",
+    "empty": "UKMTO nije vratio incidente.",
+    "stale": "Zastarjeli izvorni podaci. Zadnja provjera",
+    "current": "Izvor provjeren",
+    "reportedClaims": "Izvješća izdavača. Tvrdnje mogu još biti pod istragom.",
+    "occurred": "Incident",
+    "reported": "Objavljeno"
   }
 }

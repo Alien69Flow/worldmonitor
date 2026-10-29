@@ -108,7 +108,8 @@
     "fearGreed": "Angst & Hebzucht",
     "marketBreadth": "Marktbreedte",
     "climateNews": "Klimaatnieuws",
-    "fx": "Wisselkoersen"
+    "fx": "Wisselkoersen",
+    "ukmtoIncidents": "UKMTO-incidenten"
   },
   "commands": {
     "prefixes": {
@@ -4168,5 +4169,14 @@
         "0": "Lagengids"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "UKMTO-gegevens niet beschikbaar.",
+    "empty": "UKMTO heeft geen incidenten teruggegeven.",
+    "stale": "Verouderde brongegevens. Laatst gecontroleerd",
+    "current": "Bron gecontroleerd",
+    "reportedClaims": "Meldingen van de uitgever. Beweringen worden mogelijk nog onderzocht.",
+    "occurred": "Incident",
+    "reported": "Gepubliceerd"
   }
 }

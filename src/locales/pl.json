@@ -496,7 +496,8 @@
     "fearGreed": "Strach i Chciwość",
     "marketBreadth": "Szerokość Rynku",
     "climateNews": "Wiadomości Klimatyczne",
-    "fx": "Kursy walutowe"
+    "fx": "Kursy walutowe",
+    "ukmtoIncidents": "Incydenty UKMTO"
   },
   "commands": {
     "prefixes": {
@@ -4208,5 +4209,14 @@
         "0": "Przewodnik po warstwach"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "Dane UKMTO są niedostępne.",
+    "empty": "UKMTO nie zwróciło żadnych incydentów.",
+    "stale": "Nieaktualne dane źródłowe. Ostatnia kontrola",
+    "current": "Źródło sprawdzone",
+    "reportedClaims": "Raporty wydawcy. Twierdzenia mogą nadal być badane.",
+    "occurred": "Incydent",
+    "reported": "Opublikowano"
   }
 }

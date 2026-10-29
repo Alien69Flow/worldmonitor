@@ -561,7 +561,8 @@
     "fearGreed": "Hofu & Uchoyo",
     "marketBreadth": "Upana wa Soko",
     "climateNews": "Habari za Hali ya Hewa",
-    "fx": "Kiwango cha ubadilishaji wa fedha za kigeni"
+    "fx": "Kiwango cha ubadilishaji wa fedha za kigeni",
+    "ukmtoIncidents": "Matukio ya UKMTO"
   },
   "commands": {
     "prefixes": {
@@ -4168,5 +4169,14 @@
         "0": "Mwongozo wa Tabaka"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "Data za UKMTO hazipatikani.",
+    "empty": "UKMTO haikurudisha matukio.",
+    "stale": "Data za chanzo zimepitwa na wakati. Ukaguzi wa mwisho",
+    "current": "Chanzo kimekaguliwa",
+    "reportedClaims": "Ripoti za mchapishaji. Madai yanaweza kuwa bado yanachunguzwa.",
+    "occurred": "Tukio",
+    "reported": "Imechapishwa"
   }
 }

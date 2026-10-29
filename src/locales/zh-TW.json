@@ -490,7 +490,8 @@
     "consumerPrices": "消費者價格",
     "marketBreadth": "市場廣度",
     "climateNews": "氣候新聞",
-    "fx": "外匯匯率"
+    "fx": "外匯匯率",
+    "ukmtoIncidents": "UKMTO事件"
   },
   "commands": {
     "prefixes": {
@@ -4148,5 +4149,14 @@
         "0": "圖層指南"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "UKMTO資料不可用。",
+    "empty": "UKMTO未返回任何事件。",
+    "stale": "來源資料已過時。上次檢查",
+    "current": "來源已檢查",
+    "reportedClaims": "釋出方報告。相關說法可能仍在調查中。",
+    "occurred": "事件",
+    "reported": "釋出"
   }
 }

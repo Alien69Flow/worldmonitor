@@ -561,7 +561,8 @@
     "fearGreed": "Fear & Greed",
     "marketBreadth": "Market Breadth",
     "climateNews": "Climate News",
-    "fx": "نرخ تبادل ارز"
+    "fx": "نرخ تبادل ارز",
+    "ukmtoIncidents": "رویدادهای UKMTO"
   },
   "commands": {
     "prefixes": {
@@ -4168,5 +4169,14 @@
         "0": "راهنمای لایه"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "داده‌های UKMTO در دسترس نیست.",
+    "empty": "UKMTO هیچ رویدادی برنگرداند.",
+    "stale": "داده‌های منبع قدیمی است. آخرین بررسی",
+    "current": "منبع بررسی شد",
+    "reportedClaims": "گزارش‌های ناشر. ادعاها ممکن است همچنان در دست بررسی باشند.",
+    "occurred": "رویداد",
+    "reported": "انتشار"
   }
 }

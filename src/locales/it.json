@@ -494,7 +494,8 @@
     "fearGreed": "Paura e Avidità",
     "marketBreadth": "Ampiezza di Mercato",
     "climateNews": "Notizie Clima",
-    "fx": "Tassi di cambio"
+    "fx": "Tassi di cambio",
+    "ukmtoIncidents": "Incidenti UKMTO"
   },
   "commands": {
     "prefixes": {
@@ -4188,5 +4189,14 @@
         "0": "Guida ai livelli"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "Dati UKMTO non disponibili.",
+    "empty": "UKMTO non ha restituito incidenti.",
+    "stale": "Dati della fonte obsoleti. Ultimo controllo",
+    "current": "Fonte controllata",
+    "reportedClaims": "Rapporti dell’editore. Le affermazioni potrebbero essere ancora oggetto di indagine.",
+    "occurred": "Incidente",
+    "reported": "Pubblicato"
   }
 }

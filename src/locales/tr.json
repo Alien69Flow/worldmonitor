@@ -492,7 +492,8 @@
     "fearGreed": "Korku & Açgözlülük",
     "marketBreadth": "Pazar Genişliği",
     "climateNews": "İklim Haberleri",
-    "fx": "Döviz kurları"
+    "fx": "Döviz kurları",
+    "ukmtoIncidents": "UKMTO olayları"
   },
   "commands": {
     "prefixes": {
@@ -4168,5 +4169,14 @@
         "0": "Katman Rehberi"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "UKMTO verileri kullanılamıyor.",
+    "empty": "UKMTO herhangi bir olay döndürmedi.",
+    "stale": "Kaynak verileri güncel değil. Son kontrol",
+    "current": "Kaynak kontrol edildi",
+    "reportedClaims": "Yayıncı raporları. İddialar hâlâ araştırılıyor olabilir.",
+    "occurred": "Olay",
+    "reported": "Yayımlandı"
   }
 }

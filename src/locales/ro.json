@@ -494,7 +494,8 @@
     "fearGreed": "Frică și lacómie",
     "marketBreadth": "Amploarea pieței",
     "climateNews": "Știri despre climă",
-    "fx": "Cursuri de schimb valutar"
+    "fx": "Cursuri de schimb valutar",
+    "ukmtoIncidents": "Incidente UKMTO"
   },
   "commands": {
     "prefixes": {
@@ -4188,5 +4189,14 @@
         "0": "Ghid de straturi"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "Datele UKMTO nu sunt disponibile.",
+    "empty": "UKMTO nu a returnat incidente.",
+    "stale": "Date sursă învechite. Ultima verificare",
+    "current": "Sursă verificată",
+    "reportedClaims": "Rapoarte ale editorului. Afirmațiile pot fi încă investigate.",
+    "occurred": "Incident",
+    "reported": "Publicat"
   }
 }

@@ -494,7 +494,8 @@
     "consumerPrices": "Precios al Consumidor",
     "marketBreadth": "Amplitud de Mercado",
     "climateNews": "Noticias de Clima",
-    "fx": "Tipos de cambio"
+    "fx": "Tipos de cambio",
+    "ukmtoIncidents": "Incidentes de UKMTO"
   },
   "commands": {
     "prefixes": {
@@ -4188,5 +4189,14 @@
         "0": "Guía de capas"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "Datos de UKMTO no disponibles.",
+    "empty": "UKMTO no devolvió incidentes.",
+    "stale": "Datos de origen desactualizados. Última comprobación",
+    "current": "Fuente comprobada",
+    "reportedClaims": "Informes del editor. Las afirmaciones pueden seguir bajo investigación.",
+    "occurred": "Incidente",
+    "reported": "Publicado"
   }
 }

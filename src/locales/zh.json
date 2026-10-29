@@ -490,7 +490,8 @@
     "consumerPrices": "消费者价格",
     "marketBreadth": "市场广度",
     "climateNews": "气候新闻",
-    "fx": "外汇汇率"
+    "fx": "外汇汇率",
+    "ukmtoIncidents": "UKMTO事件"
   },
   "commands": {
     "prefixes": {
@@ -4148,5 +4149,14 @@
         "0": "图层指南"
       }
     }
+  },
+  "ukmto": {
+    "unavailable": "UKMTO数据不可用。",
+    "empty": "UKMTO未返回任何事件。",
+    "stale": "来源数据已过时。上次检查",
+    "current": "来源已检查",
+    "reportedClaims": "发布方报告。相关说法可能仍在调查中。",
+    "occurred": "事件",
+    "reported": "发布"
   }
 }
