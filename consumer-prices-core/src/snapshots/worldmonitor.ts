@@ -34,7 +34,7 @@ export interface WMOverviewSnapshot {
   coveragePct: number;
   freshnessLagMin: number;
   topCategories: WMCategorySnapshot[];
-  upstreamUnavailable: false;
+  upstreamUnavailable: boolean;
 }
 
 export interface WMPriceMover {
@@ -272,6 +272,32 @@ export async function buildOverviewSnapshot(marketCode: string): Promise<WMOverv
   const prevMonth: Record<string, number> = {};
   for (const row of prevMonthResult.rows) prevMonth[row.metric_key] = parseFloat(row.metric_value);
 
+  const freshnessLagMin = freshnessResult.rows[0]?.avg_lag_min
+    ? parseInt(freshnessResult.rows[0].avg_lag_min, 10)
+    : 0;
+
+  // Aggregate records zero coverage on a day no fresh product priced the
+  // basket. Its newest index is then the last covered day's, so publishing it
+  // under a current asOf would present an expired price level as today's.
+  // Covered rows with no current-methodology index (no item has a baseline)
+  // are equally unpublishable: the fallback would present 100 as a measurement.
+  if (!((metrics.coverage_pct ?? 0) > 0) || metrics.essentials_index == null) {
+    return {
+      marketCode,
+      asOf: String(now),
+      currencyCode: currencyResult.rows[0]?.currency_code ?? 'USD',
+      essentialsIndex: 0,
+      valueBasketIndex: 0,
+      wowPct: 0,
+      momPct: 0,
+      retailerSpreadPct: 0,
+      coveragePct: 0,
+      freshnessLagMin,
+      topCategories: [],
+      upstreamUnavailable: true,
+    };
+  }
+
   const ess = metrics.essentials_index ?? 100;
   const val = metrics.value_index ?? 100;
   const prevEss = prevWeek.essentials_index;
@@ -293,9 +319,7 @@ export async function buildOverviewSnapshot(marketCode: string): Promise<WMOverv
       ? Math.round(parseFloat(spreadResult.rows[0].spread_pct) * 10) / 10
       : 0,
     coveragePct: Math.round((metrics.coverage_pct ?? 0) * 10) / 10,
-    freshnessLagMin: freshnessResult.rows[0]?.avg_lag_min
-      ? parseInt(freshnessResult.rows[0].avg_lag_min, 10)
-      : 0,
+    freshnessLagMin,
     topCategories,
     upstreamUnavailable: false,
   };
