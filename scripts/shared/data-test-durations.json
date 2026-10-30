@@ -87,7 +87,6 @@
   "tests/api-notfound-catchall.test.mjs": 84,
   "tests/api-route-exceptions.test.mjs": 321,
   "tests/api-sentry-fingerprint-guard.test.mjs": 145,
-  "tests/app-destroy-lifecycle.test.mjs": 47,
   "tests/app-locale-freshness.test.mjs": 854,
   "tests/as-of.test.mts": 54,
   "tests/async-resource-lifecycle.test.mts": 44,
