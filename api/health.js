@@ -1093,7 +1093,7 @@ const SEED_META = {
   },
   bisLbs:           { key: 'seed-meta:economic:bis-lbs',          maxStaleMin: 14400 }, // BIS LBS quarterly publication; 10d threshold = ~1× publish lag tolerance after macro bundle daily refresh
   fatfListing:      { key: 'seed-meta:economic:fatf-listing',     maxStaleMin: 60480 }, // FATF plenary 3×/year; 42d threshold = >1 plenary cycle (catches missed-update if cron silently fails)
-  shippingRates:    { key: 'seed-meta:supply_chain:shipping',     maxStaleMin: 420 },
+  shippingRates:    { key: 'seed-meta:supply_chain:shipping',     maxStaleMin: 1140 },
   chokepoints:      { key: 'seed-meta:supply_chain:chokepoints',  maxStaleMin: 60, minRecordCount: 13 }, // 13 canonical chokepoints; get-chokepoint-status writes covered-count → < 13 = upstream partial (portwatch/ArcGIS dropped some)
   // minerals + giving: on-demand cachedFetchJson only, no seed-meta writer — freshness checked via TTL
   // bisExchange + bisCredit: extras written by same BIS script via writeExtraKey, no dedicated seed-meta
@@ -1655,20 +1655,20 @@ const SEED_META = {
   // the sample) while the 30-year window picks up reporters with no recent data.
   // 200 leaves ~26% headroom for reporter-list drift and still fires well before
   // a real collapse.
-  // maxStaleMin sits INSIDE the 480min (8h) TRADE_TTL, not outside it. This is
+  // maxStaleMin sits INSIDE the 1440min (24h, #4873) TRADE_TTL, not outside it. This is
   // a meta-only probe (STANDALONE_KEYS.tradeFlows is the seed-meta key itself,
   // because the payload is sharded one key per reporter), so the hasData/EMPTY
   // backstop watches the meta record — which writeSeedMeta gives a 7-day TTL —
-  // and not the 8h data keys. Nothing else would notice the data expiring. A
-  // budget past 480 would therefore be silently green while every flow key was
-  // already gone. 420 = the 6h cron plus one hour of grace, so health reaches
-  // STALE_SEED an hour BEFORE the keys it vouches for lapse. Same shape as the
+  // and not the 24h data keys. Nothing else would notice the data expiring. A
+  // budget past 1440 would therefore be silently green while every flow key was
+  // already gone. 1140 = three 6h ticks plus one hour of grace, so health reaches
+  // STALE_SEED 5 hours BEFORE the keys it vouches for lapse. Same shape as the
   // meta-only comtradeBilateralHs4 entry above (35d budget, 40d payload TTL).
-  tradeFlows:          { key: 'seed-meta:trade:flows',                        maxStaleMin: 420, minRecordCount: 200, dominantFailureMode: true },
+  tradeFlows:          { key: 'seed-meta:trade:flows',                        maxStaleMin: 1140, legacyMaxStaleMin: 420, minRecordCount: 200, dominantFailureMode: true },
   // Same meta-only shape as tradeFlows above (#6316 moved tariffs off the
-  // single-key US years=10 probe). maxStaleMin 420 sits inside TARIFF_TTL
-  // (480min); minRecordCount 150 leaves headroom under a ~200+ reporter fleet.
-  tariffTrendsUs:      { key: 'seed-meta:trade:tariffs',                      maxStaleMin: 420, minRecordCount: 150 },
+  // single-key US years=10 probe). maxStaleMin 1140 sits inside TARIFF_TTL
+  // (1440min since #4873); minRecordCount 150 leaves headroom under a ~200+ reporter fleet.
+  tariffTrendsUs:      { key: 'seed-meta:trade:tariffs',                      maxStaleMin: 1140, legacyMaxStaleMin: 420, minRecordCount: 150 },
   // publish.ts runs each day at 02:30-05:30 UTC (hourly); seed-meta TTL=52h — maxStaleMin must cover the full 24h cycle
   consumerPricesOverview:   { key: 'seed-meta:consumer-prices:overview:ae',     maxStaleMin: 1500, minSuccessRate: 0.5 }, // 25h = 24h cadence + 1h grace; warn when <50% snapshots succeeded
   consumerPricesCategories: { key: 'seed-meta:consumer-prices:categories:ae:30d',            maxStaleMin: 1500 },
@@ -3596,7 +3596,17 @@ function isCascadeCovered(name, hasData, keyStrens, keyErrors) {
 
 function classifyKey(name, redisKey, opts, ctx) {
   const { keyStrens, keyErrors, keyMetaValues, keyMetaErrors, now } = ctx;
-  const seedCfg = SEED_META[name];
+  let seedCfg = SEED_META[name];
+  // API and worker releases can arrive in either order. Keep the old limit
+  // until this fleet's successful publish proves retention beyond the new
+  // budget. Retain this fallback while an eight-hour worker can still run.
+  if (seedCfg?.legacyMaxStaleMin != null) {
+    const published = unwrapEnvelope(parseRedisValue(keyMetaValues.get(seedCfg.key))).data;
+    const payloadTtlSeconds = published?.payloadTtlSeconds;
+    if (!Number.isFinite(payloadTtlSeconds) || payloadTtlSeconds <= seedCfg.maxStaleMin * 60) {
+      seedCfg = { ...seedCfg, maxStaleMin: seedCfg.legacyMaxStaleMin };
+    }
+  }
   ctx.containmentEvidenceByName?.delete(name);
   // #6095 audited this grace and DELIBERATELY kept it soft when the marker read
   // failed, unlike the content-freshness grace below. What it gates is why:

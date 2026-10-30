@@ -585,7 +585,7 @@ describe('scheduled seed freshness monitor', () => {
     const dataKey = STANDALONE_KEYS[name];
     const expectedMeta = {
       key: 'seed-meta:supply_chain:shipping',
-      maxStaleMin: 420,
+      maxStaleMin: 1140,
     };
     const now = Date.parse('2026-07-28T21:00:00Z');
 
@@ -598,8 +598,8 @@ describe('scheduled seed freshness monitor', () => {
     assert.equal(service?.cronSchedule, '0 */6 * * *');
     assert.equal(
       expectedMeta.maxStaleMin,
-      6 * 60 + 60,
-      'health must allow one hour of headroom beyond the six-hour cron',
+      3 * 6 * 60 + 60,
+      'health must allow three missed six-hour ticks plus one hour of grace',
     );
 
     const entry = classifyKey(name, dataKey, { allowOnDemand: true }, {
