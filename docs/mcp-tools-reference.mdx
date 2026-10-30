@@ -869,7 +869,7 @@ Return the frozen v1 scorecard for exactly one country or bloc. Choose one of a 
 | `preset` | string | one selector | `USMCA`, `EU27`, `BRICS`, `GCC`, `ASEAN`, or `NATO`. |
 | `members` | string[] | one selector | Custom bloc of 2–30 unique uppercase ISO-2 codes. |
 
-- **API endpoints:** `GET /api/scorecard/v1/get-five-factor-scorecard`, `GET /api/scorecard/v1/get-bloc-scorecard`
+- **API endpoints:** `GET /api/scorecard/v1/get-five-factor-scorecard`, `GET /api/scorecard/v1/get-bloc-scorecard` — free for anonymous REST callers, unlike this MCP tool.
 - **Access:** `subscription` — requires a Pro subscription. RPC tool: no `summary` argument; use `jmespath` to trim evidence.
 - **Kind:** canonical RPC proxy over `scorecard:five-factor:v1`; it does not fetch source datasets at request time.
 - **Freshness:** daily seed with a 36-hour freshness budget. Read `computedAt`, `methodologyVersion`, and the seed health metadata separately when operational freshness matters.
@@ -909,7 +909,7 @@ curl -s https://worldmonitor.app/mcp \
 List a compact summary for every country in the frozen scorecard cohort. Each row keeps the pillar score, band, input coverage, and insufficient-data reasons, but omits raw inputs and source observations so the complete country set stays within the MCP output budget.
 
 - **Parameters:** none
-- **API endpoint:** `GET /api/scorecard/v1/list-five-factor-scorecards`
+- **API endpoint:** `GET /api/scorecard/v1/list-five-factor-scorecards` — free for anonymous REST callers, unlike this MCP tool.
 - **Access:** `subscription` — requires a Pro subscription.
 - **Kind:** compact projection of the same atomic `scorecard:five-factor:v1` snapshot.
 
